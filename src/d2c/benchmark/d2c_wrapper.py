@@ -7,6 +7,11 @@ from d2c.descriptors.d2c import D2C as D2C_
 class D2CWrapper(BaseCausalInference):
     """
     D2C class wrapper for causal inference using the D2C algorithm.
+    This is used as a standalone class when running the method against competitors. 
+    This method - differently from the D2C class - can be executed directly on a raw time series and will perform 
+    complete causal discovery of all possible edges. 
+
+    Notice that this works on a single time series and not on a list. 
 
     Parameters:
     - n_variables (int): Number of variables in the dataset. Default is 6.
@@ -35,7 +40,12 @@ class D2CWrapper(BaseCausalInference):
         self.n_variables = kwargs.pop('n_variables', 6)
         
         self.full = kwargs.pop('full', True)
+        self.quantiles = kwargs.pop('quantiles', True)
         self.model = kwargs.pop('model', None)
+        self.cmi = kwargs.pop('cmi', 'cmiknn_3')
+        self.mb_estimator = kwargs.pop('mb_estimator', 'ts')
+        self.normalize = kwargs.pop('normalize', True)
+        self.filename = kwargs.pop('filename', None)
         if self.model is None:
             raise ValueError('model is required for D2C inference')
         
@@ -53,17 +63,27 @@ class D2CWrapper(BaseCausalInference):
         - results: The results of the causal inference in a dataframe format.
 
         """
+
+        #get ts_index from kwargs
+        ts_index = kwargs.get('ts_index', None)
+
         data_for_d2c = DataLoader._create_lagged_single_ts(single_ts, self.maxlags)
 
         d2c = D2C_(dags = None, 
                     observations = [data_for_d2c], 
                     maxlags=self.maxlags,
                     n_variables=self.n_variables,
-                    full=self.full)
+                    full=self.full,
+                    quantiles=self.quantiles,
+                    cmi=self.cmi,
+                    normalize=self.normalize,
+                    mb_estimator=self.mb_estimator)
         
         descriptors = d2c.compute_descriptors_without_dag(n_variables=self.n_variables,maxlags=self.maxlags)
 
         descriptors = pd.DataFrame(descriptors)
+        if self.filename is not None:
+            descriptors.to_csv(self.filename+'_'+str(ts_index)+'.csv')
         X_test = descriptors.drop(['graph_id', 'edge_source', 'edge_dest','is_causal'], axis=1)
 
         y_pred_proba = self.model.predict_proba(X_test)[:,1]

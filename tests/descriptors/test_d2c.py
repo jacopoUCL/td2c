@@ -30,3 +30,4 @@ def test_compute_descriptors_with_dag(simple_dag_and_data):
     d2c_instance.initialize()  # Assuming this computes the descriptors
     assert d2c_instance.x_y is not None
     # Further assertions to validate the structure and data of the descriptors
+

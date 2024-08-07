@@ -15,16 +15,20 @@ import time
 
 
 class MarkovBlanketEstimator:
-    def __init__(self, size=5, verbose=True):
+    def __init__(self, size=5, n_variables=5, maxlags=5, verbose=True):
         """
         Initializes the Markov Blanket Estimator with specified parameters.
         
         Parameters:
-        - nmax (int): The maximum number of features to consider in the Markov Blanket.
         - verbose (bool): Whether to print detailed logs.
+        - size (int): The desired size of the Markov Blanket.
+        - n_variables (int): The number of variables in the dataset.
+        - maxlags (int): The maximum number of lags to consider in the time series analysis.
         """
         self.verbose = verbose
         self.size = size
+        self.n_variables = n_variables
+        self.maxlags = maxlags
 
     def column_based_correlation(self, X, Y):
         """
@@ -89,6 +93,24 @@ class MarkovBlanketEstimator:
         
         return sorted_ind[:self.size]
     
+    def estimate_time_series(self, dataset, node):
+        '''
+        The idea is to leverage the fact that we are in a temporal context and we know that x_t-1 is in the markov blanked of x_t. As well as x_t+1. 
+        Based on the position in the observations dataset; and the number of dimensions and maxlags, we can reconstruct the time series and estimate the markov blanket.
+        This is how the dataset is structured:
+        |X1,X2,X3|X1_t-1,X2_t-1,X3_t-1|X1_t-2,X2_t-2,X3_t-2|
+        in fact, it's just (node + n_variables) and (node - n_variables) when they exist!
+        '''
+        # print('Estimating MB for node', node)
+        mb = np.array([])
+        if node + self.n_variables < dataset.shape[1]:
+            mb = np.append(mb, node + self.n_variables)
+        if node - self.n_variables >= 0:
+            mb = np.append(mb, node - self.n_variables)
+        # print('Markov Blanket:', mb)
+        # make mb type int
+        return mb.astype(int)
+    
 cache = Cache(maxsize=1024)  # Define cache size
 
 def custom_hashkey(*args, **kwargs):
@@ -124,7 +146,7 @@ def mse(X, y, cv):
 
 class MutualInformationEstimator: 
 
-    def __init__(self, proxy='Ridge', proxy_params=None):
+    def __init__(self, proxy='Ridge', proxy_params=None, k=3):
         """
         Initializes the Mutual Information Estimator with specified regression proxy and parameters.
         
@@ -134,6 +156,7 @@ class MutualInformationEstimator:
         """
         self.proxy = proxy
         self.proxy_params = proxy_params or {}
+        self.k = k
 
     def get_regression_model(self):
         """
@@ -154,7 +177,7 @@ class MutualInformationEstimator:
             raise ValueError(f"Unsupported proxy model: {self.proxy}")
         return model
     
-    def estimate(self, y, x1, x2=None, cv=2):
+    def estimate_original(self, dataset, y_index, x1_index, x2_index = None, cv=2):
         """
         Estimates the (normalized) conditional mutual information of x1 to y given x2. 
         
@@ -184,6 +207,11 @@ class MutualInformationEstimator:
         Returns:
         - float: The estimated conditional mutual information.
         """
+
+        y = dataset[:, y_index]
+        x1 = dataset[:, x1_index]
+        x2 = None if x2_index is None else dataset[:, x2_index]
+
         
         if x2 is None or x2.size == 0:  #- I(x1; y) ≈ (H(y) − H(y|x1))/H(y)= 1 - MSE(x1,y) / Var(y)
             entropy_y = max(1e-3, np.var(y)) #we set 0.001 as a lower bound
@@ -201,6 +229,39 @@ class MutualInformationEstimator:
             entropy_y_given_x1_x2 = mse(x1x2, y, cv=cv) # how much information x1 and x2 together have about y
             mutual_information = 1 - entropy_y_given_x1_x2 / entropy_y_given_x2
             return max(0, mutual_information)
+        
+
+    def estimate_knn_cmi(self, dataset, y_index, x1_index, x2_index = None):
+        """
+
+        """
+        import knncmi
+        import pandas as pd
+        dataset = pd.DataFrame(dataset)
+        #make columns strings
+        dataset.columns = [str(i) for i in dataset.columns]
+
+        # if x2_index is list and is empty, set it to None
+        if x2_index is not None and isinstance(x2_index, list) and len(x2_index) == 0:
+            x2_index = None
+
+        # print(dataset)
+        # print(dataset.columns)
+        # print(y_index)
+        # print(dataset.columns[y_index])
+        y_name = [dataset.columns[y_index]]
+        x1_name = [dataset.columns[x1_index]]
+        x2_name = None if x2_index is None else list(dataset.columns[x2_index])
+      
+        # print(y_name)
+        # print(x1_name)
+        # print(x2_name)
+        if x2_name is None:  
+            return knncmi.cmi(y_name, x1_name, [], self.k, dataset)
+
+        else: 
+            return knncmi.cmi(y_name, x1_name, x2_name, self.k, dataset)
+
         
 
 

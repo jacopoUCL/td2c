@@ -12,7 +12,7 @@ class D2C:
 
     Args:
         dags (list): List of directed acyclic graphs (DAGs) representing causal relationships.
-        observations (list): List of observations corresponding to each DAG.
+        observations (list): List of observations (pd.DataFrame) corresponding to each DAG.
         n_variables (int, optional): Number of variables in the time series. Defaults to 3.
         maxlags (int, optional): Maximum number of lags in the time series. Defaults to 3.
         mutual_information_proxy (str, optional): Method to use for mutual information computation. Defaults to "Ridge".
@@ -45,7 +45,11 @@ class D2C:
                  mutual_information_proxy="Ridge", 
                  proxy_params=None,
                  full = False, 
+                 quantiles = True,
+                 normalize=False,
                  verbose=False, 
+                 cmi = 'cmiknn_3',
+                 mb_estimator = 'original',
                  seed=42, 
                  n_jobs=1) -> None:
         
@@ -58,14 +62,19 @@ class D2C:
         self.proxy_params = proxy_params
         self.verbose = verbose
         self.n_jobs = n_jobs
-        self.seed = seed 
+        self.seed = seed
+        self.cmi = cmi
+        self.normalize = normalize
 
         self.x_y = None # Placeholder for computed descriptors, list of dictionaries
         self.test_couples = []  # List of couples for which descriptors have been computed
 
-        self.markov_blanket_estimator = MarkovBlanketEstimator(size=min(MB_size, n_variables - 2))
-        self.mutual_information_estimator = MutualInformationEstimator(proxy=mutual_information_proxy, proxy_params=proxy_params)
+        self.markov_blanket_estimator = MarkovBlanketEstimator(size=min(MB_size, n_variables - 2), n_variables = n_variables, maxlags=maxlags)
 
+        self.mb_estimator = mb_estimator
+        self.mutual_information_estimator = MutualInformationEstimator(proxy=mutual_information_proxy, proxy_params=proxy_params, k=int(self.cmi.split('_')[-1]) if self.cmi.startswith('cmiknn') else None)
+
+        self.quantiles = quantiles
         self.full = full
 
 
@@ -204,6 +213,24 @@ class D2C:
         for i, q in enumerate(quantiles):
             dictionary[f'{name}_q{i}'] = q
 
+    def update_dictionary_distribution(self, dictionary, name, values):
+        """
+        Update the given dictionary moments of the distribution.
+
+        Args:
+            dictionary (dict): The dictionary to update.
+            name (str): The name of the quantiles.
+            values (list): A list of values to compute the distirbution moments.
+
+        Returns:
+            None
+        """
+        # from scipy.stats import kurtosis, skew
+        dictionary[f'{name}_mean'] = np.mean(values)
+        dictionary[f'{name}_std'] = np.std(values)
+        # dictionary[f'{name}_skew'] = skew(values)
+        # dictionary[f'{name}_kurtosis'] = kurtosis(values)
+
 
     def compute_descriptors_for_couple(self, dag_idx, ca, ef, label):
         """
@@ -221,18 +248,30 @@ class D2C:
         """
         pq=[0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95]
 
-        observations = self.standardize_data(self.observations[dag_idx])
+        if self.normalize:
+            observations = self.standardize_data(self.observations[dag_idx])
+        else:
+            observations = self.observations[dag_idx]
 
-        MBca = self.markov_blanket_estimator.estimate(observations, node=ca)
-        MBef = self.markov_blanket_estimator.estimate(observations, node=ef)
+        if self.mb_estimator=='original':
+            MBca = self.markov_blanket_estimator.estimate(observations, node=ca)
+            MBef = self.markov_blanket_estimator.estimate(observations, node=ef)
+        elif self.mb_estimator=='ts':
+            MBca = self.markov_blanket_estimator.estimate_time_series(observations, node=ca)
+            MBef = self.markov_blanket_estimator.estimate_time_series(observations, node=ef)
+            
         common_causes = list(set(MBca).intersection(MBef))
         mbca_mbef_couples = [(i, j) for i in range(len(MBca)) for j in range(len(MBef))]
         mbca_mbca_couples = [(i, j) for i in range(len(MBca)) for j in range(len(MBca)) if i != j]
         mbef_mbef_couples = [(i, j) for i in range(len(MBef)) for j in range(len(MBef)) if i != j]
 
         
-        e, c = observations[:, ef], observations[:, ca] #aliases 'e' and 'c' for brevity
-        CMI = self.mutual_information_estimator.estimate # alias for mutual information estimator function, for brevity
+        # e, c = observations[:, ef], observations[:, ca] #aliases 'e' and 'c' for brevity
+        e,c  = ef,ca
+        if 'cmiknn' in self.cmi:
+            CMI = self.mutual_information_estimator.estimate_knn_cmi # alias for mutual information estimator function, for brevity
+        elif self.cmi == 'original':
+            CMI = self.mutual_information_estimator.estimate_original
 
         values = {}
         values['graph_id'] = dag_idx
@@ -241,92 +280,110 @@ class D2C:
         values['is_causal'] = label
 
         # b: ef = b * (ca + mbef)
-        values['coeff_cause'] = coeff(e, c, observations[:, MBef])
+        values['coeff_cause'] = coeff(observations[:, e], observations[:, c], observations[:, MBef])
 
         # b: ca = b * (ef + mbca)
-        values['coeff_eff'] = coeff(c, e, observations[:, MBca])
+        values['coeff_eff'] = coeff(observations[:, c], observations[:, e], observations[:, MBca])
 
-        # I(m; cause) for m in MBef
-        m_cau = [0] if not len(MBef) else [CMI(c, observations[:, m]) for m in MBef]
-        if self.full:
-            self.update_dictionary_quantiles(values, 'm_cau', np.quantile(m_cau, pq))
-        else:
-            values['m_cau_q6'] = np.quantile(m_cau, pq[6])
+        values['HOC_3_1'] = HOC(observations[:, c], observations[:, e], 3, 1)
+        values['HOC_1_2'] = HOC(observations[:, c], observations[:, e], 1, 2)
+        values['HOC_2_1'] = HOC(observations[:, c], observations[:, e], 2, 1)
+        values['HOC_1_3'] = HOC(observations[:, c], observations[:, e], 1, 3)
+
+        values['kurtosis_ca'] = kurtosis(observations[:, c])
+        values['kurtosis_ef'] = kurtosis(observations[:, e])
+
 
         # I(mca ; mef | cause) for (mca,mef) in mbca_mbef_couples
-        mca_mef_cau = [0] if not len(mbca_mbef_couples) else [CMI(observations[:,i], observations[:,j], c) for i, j in mbca_mbef_couples]
-        if self.full:
-            self.update_dictionary_quantiles(values, 'mca_mef_cau', np.quantile(mca_mef_cau, pq))
-        else:
-            values['mca_mef_cau_q4'] = np.quantile(mca_mef_cau, pq[4])
+        # mca_mef_cau = [0] if not len(mbca_mbef_couples) else [CMI(observations[:,i], observations[:,j], c) for i, j in mbca_mbef_couples]
+        mca_mef_cau = [0] if not len(mbca_mbef_couples) else [CMI(observations, i,j,c) for i, j in mbca_mbef_couples]
+        if self.quantiles: self.update_dictionary_quantiles(values, 'mca_mef_cau', np.quantile(mca_mef_cau, pq))
+        else: self.update_dictionary_distribution(values, 'mca_mef_cau', mca_mef_cau)
 
         # I(mca ; mef| effect) for (mca,mef) in mbca_mbef_couples
-        mca_mef_eff = [0] if not len(mbca_mbef_couples) else [CMI(observations[:,i], observations[:,j], e) for i, j in mbca_mbef_couples]
+        # mca_mef_eff = [0] if not len(mbca_mbef_couples) else [CMI(observations[:,i], observations[:,j], e) for i, j in mbca_mbef_couples]
+        mca_mef_eff = [0] if not len(mbca_mbef_couples) else [CMI(observations, i,j, e) for i, j in mbca_mbef_couples]
+        if self.quantiles: self.update_dictionary_quantiles(values, 'mca_mef_eff', np.quantile(mca_mef_eff, pq))
+        else: self.update_dictionary_distribution(values, 'mca_mef_eff', mca_mef_eff)
+
+        # I(cause; m | effect) for m in MBef
+        # cau_m_eff = [0] if not len(MBef) else [CMI(c, observations[:, m], e) for m in MBef]
+        cau_m_eff = [0] if not len(MBef) else [CMI(observations, c, m, e) for m in MBef]
+        if self.quantiles: self.update_dictionary_quantiles(values, 'cau_m_eff', np.quantile(cau_m_eff, pq))
+        else: self.update_dictionary_distribution(values, 'cau_m_eff', cau_m_eff)
+
+        # I(effect; m | cause) for m in MBca
+        # eff_m_cau = [0] if not len(MBca) else [CMI(e, observations[:, m], c) for m in MBca]
+        eff_m_cau = [0] if not len(MBca) else [CMI(observations,e, m, c) for m in MBca]
+        if self.quantiles: self.update_dictionary_quantiles(values, 'eff_m_cau', np.quantile(eff_m_cau, pq))
+        else: self.update_dictionary_distribution(values, 'eff_m_cau', eff_m_cau)
+
+
         if self.full:
-            self.update_dictionary_quantiles(values, 'mca_mef_eff', np.quantile(mca_mef_eff, pq))
-        else:
-            values['mca_mef_eff_q4'] = np.quantile(mca_mef_eff, pq[4])
 
+            # I(m; cause) for m in MBef
+            # m_cau = [0] if not len(MBef) else [CMI(c, observations[:, m]) for m in MBef]
+            m_cau = [0] if not len(MBef) else [CMI(observations, c, m) for m in MBef]
+            if self.quantiles: self.update_dictionary_quantiles(values, 'm_cau', np.quantile(m_cau, pq))
+            else: self.update_dictionary_distribution(values, 'm_cau', m_cau)
 
-        values['HOC_3_1'] = HOC(c, e, 3, 1)
-        values['kurtosis_ca'] = kurtosis(c)
-        values['kurtosis_ef'] = kurtosis(e)
-
-        if self.full:
             # I(cause; effect | common_causes)
-            values['com_cau'] = CMI(e, c, observations[:, common_causes])
+            # values['com_cau'] = CMI(e, c, observations[:, common_causes])
+            values['com_cau'] = CMI(observations, e, c, common_causes)
+
 
             # I(cause; effect)
-            values['cau_eff'] = CMI(e, c)
+            # values['cau_eff'] = CMI(e, c)
+            values['cau_eff'] = CMI(observations, e, c)
 
             # I(effect; cause)
-            values['eff_cau'] = CMI(c, e)
+            # values['eff_cau'] = CMI(c, e)
+            values['eff_cau'] = CMI(observations, c, e)
 
             # I(effect; cause | MBeffect)
-            values['eff_cau_mbeff'] = CMI(c, e, observations[:, MBef])
+            # values['eff_cau_mbeff'] = CMI(c, e, observations[:, MBef])
+            values['eff_cau_mbeff'] = CMI(observations, c, e, MBef)
 
             # I(cause; effect | MBcause)
-            values['cau_eff_mbcau'] = CMI(e, c, observations[:, MBca])
+            # values['cau_eff_mbcau'] = CMI(e, c, observations[:, MBca])
+            values['cau_eff_mbcau'] = CMI(observations, e, c, MBca)
 
             # I(effect; cause | arrays_m_plus_MBca)
-            eff_cau_mbcau_plus = [0] if not len(MBef) else [CMI(c, e, observations[:,np.unique(np.concatenate(([m], MBca)))]) for m in MBef]
-            self.update_dictionary_quantiles(values, 'eff_cau_mbcau_plus', np.quantile(eff_cau_mbcau_plus, pq))
+            # eff_cau_mbcau_plus = [0] if not len(MBef) else [CMI(c, e, observations[:,np.unique(np.concatenate(([m], MBca)))]) for m in MBef]
+            eff_cau_mbcau_plus = [0] if not len(MBef) else [CMI(observations, c, e, np.unique(np.concatenate(([m], MBca)))) for m in MBef]
+            if self.quantiles: self.update_dictionary_quantiles(values, 'eff_cau_mbcau_plus', np.quantile(eff_cau_mbcau_plus, pq))
+            else: self.update_dictionary_distribution(values, 'eff_cau_mbcau_plus', eff_cau_mbcau_plus)
             
             # I(cause; effect | arrays_m_plus_MBef)
-            cau_eff_mbeff_plus = [0] if not len(MBca) else [CMI(e, c, observations[:,np.unique(np.concatenate(([m], MBef)))]) for m in MBca]
-            self.update_dictionary_quantiles(values, 'cau_eff_mbeff_plus', np.quantile(cau_eff_mbeff_plus, pq))
+            # cau_eff_mbeff_plus = [0] if not len(MBca) else [CMI(e, c, observations[:,np.unique(np.concatenate(([m], MBef)))]) for m in MBca]
+            cau_eff_mbeff_plus = [0] if not len(MBca) else [CMI(observations, e, c, np.unique(np.concatenate(([m], MBef)))) for m in MBca]
+            if self.quantiles: self.update_dictionary_quantiles(values, 'cau_eff_mbeff_plus', np.quantile(cau_eff_mbeff_plus, pq))
+            else: self.update_dictionary_distribution(values, 'cau_eff_mbeff_plus', cau_eff_mbeff_plus)
 
 
             # I(m; effect) for m in MBca
-            m_eff = [0] if not len(MBca) else [CMI(e, observations[:, m]) for m in MBca]
-            self.update_dictionary_quantiles(values, 'm_eff', np.quantile(m_eff, pq))
-
-            # I(cause; m | effect) for m in MBef
-            cau_m_eff = [0] if not len(MBef) else [CMI(c, observations[:, m], e) for m in MBef]
-            self.update_dictionary_quantiles(values, 'cau_m_eff', np.quantile(cau_m_eff, pq))
-
-            # I(effect; m | cause) for m in MBca
-            eff_m_cau = [0] if not len(MBca) else [CMI(e, observations[:, m], c) for m in MBca]
-            self.update_dictionary_quantiles(values, 'eff_m_cau', np.quantile(eff_m_cau, pq))
-
-        
+            # m_eff = [0] if not len(MBca) else [CMI(e, observations[:, m]) for m in MBca]
+            m_eff = [0] if not len(MBca) else [CMI(observations, e, m) for m in MBca]
+            if self.quantiles: self.update_dictionary_quantiles(values, 'm_eff', np.quantile(m_eff, pq))
+            else: self.update_dictionary_distribution(values, 'm_eff', m_eff)
 
             #I(mca ; mca| cause) - I(mca ; mca) for (mca,mca) in mbca_couples
-            mca_mca_cau = [0] if not len(mbca_mbca_couples) else [CMI(observations[:,i], observations[:,j], c) - CMI(observations[:,i], observations[:,j]) for i, j in mbca_mbca_couples]
-            self.update_dictionary_quantiles(values, 'mca_mca_cau', np.quantile(mca_mca_cau, pq))
+            # mca_mca_cau = [0] if not len(mbca_mbca_couples) else [CMI(observations[:,i], observations[:,j], c) - CMI(observations[:,i], observations[:,j]) for i, j in mbca_mbca_couples]
+            mca_mca_cau = [0] if not len(mbca_mbca_couples) else [CMI(observations,i,j, c) - CMI(observations,i,j) for i, j in mbca_mbca_couples]
+            if self.quantiles: self.update_dictionary_quantiles(values, 'mca_mca_cau', np.quantile(mca_mca_cau, pq))
+            else: self.update_dictionary_distribution(values, 'mca_mca_cau', mca_mca_cau)
 
             # I(mbe ; mbe| effect) - I(mbe ; mbe) for (mbe,mbe) in mbef_couples
-            mbe_mbe_eff = [0] if not len(mbef_mbef_couples) else [CMI(observations[:,i], observations[:,j], e) - CMI(observations[:,i], observations[:,j]) for i, j in mbef_mbef_couples]
-            self.update_dictionary_quantiles(values, 'mbe_mbe_eff', np.quantile(mbe_mbe_eff, pq))
+            # mbe_mbe_eff = [0] if not len(mbef_mbef_couples) else [CMI(observations[:,i], observations[:,j], e) - CMI(observations[:,i], observations[:,j]) for i, j in mbef_mbef_couples]
+            mbe_mbe_eff = [0] if not len(mbef_mbef_couples) else [CMI(observations, i,j, e) - CMI(observations,i,j) for i, j in mbef_mbef_couples]
+            if self.quantiles: self.update_dictionary_quantiles(values, 'mbe_mbe_eff', np.quantile(mbe_mbe_eff, pq))
+            else: self.update_dictionary_distribution(values, 'mbe_mbe_eff', mbe_mbe_eff)
 
             values['n_samples'] = observations.shape[0]
             values['n_features'] = observations.shape[1]
             values['n_features/n_samples'] = observations.shape[1] / observations.shape[0]
-            values['skewness_ca'] = skew(c)
-            values['skewness_ef'] = skew(e)
-            values['HOC_1_2'] = HOC(c, e, 1, 2)
-            values['HOC_2_1'] = HOC(c, e, 2, 1)
-            values['HOC_1_3'] = HOC(c, e, 1, 3)
+            values['skewness_ca'] = skew(observations[:, c])
+            values['skewness_ef'] = skew(observations[:, e])
 
         return values
 

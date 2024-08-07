@@ -2,6 +2,8 @@ from d2c.benchmark.base import BaseCausalInference
 
 from tigramite.pcmci import PCMCI as PCMCI_
 from tigramite.independence_tests.parcorr import ParCorr
+from tigramite.independence_tests.cmiknn import CMIknn
+
 import tigramite.data_processing as pp
 
 import pandas as pd
@@ -9,12 +11,20 @@ import pickle
 
 class PCMCI(BaseCausalInference):
     def __init__(self, *args, **kwargs):
+        self.CI = kwargs.pop('ci', 'ParCorr')
+
         super().__init__(*args, **kwargs)
         self.returns_proba = True
 
     def infer(self, single_ts,**kwargs):
         dataframe = pp.DataFrame(single_ts)
-        cond_ind_test = ParCorr()
+        if self.CI == 'ParCorr':
+            cond_ind_test = ParCorr()
+        elif self.CI == 'CMIknn':
+            cond_ind_test = CMIknn()
+        else:
+            raise NotImplementedError('This CI is not yet implemented')
+
         pcmci = PCMCI_(dataframe=dataframe, cond_ind_test=cond_ind_test)
         results = pcmci.run_pcmci(tau_max=self.maxlags)
         return results

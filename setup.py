@@ -17,5 +17,6 @@ setup(
         'lingam',
         'imblearn',
         'cachetools',
+        'causalnex'
     ],
 )
