@@ -12,13 +12,5 @@ setup(
         'pandas',
         'scikit-learn',
         'scipy',
-        'statsmodels',
-        'tigramite',
-        'lingam',
-        'imblearn',
-        'cachetools',
-        'causalnex',
-        'seaborn',
-        'dcor',
     ],
 )
