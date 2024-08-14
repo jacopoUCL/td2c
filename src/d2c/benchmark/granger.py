@@ -8,7 +8,6 @@ import pandas as pd
 import pickle
 
 class Granger(BaseCausalInference):
-    #TODO: parameters of PCMCI
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -19,7 +18,7 @@ class Granger(BaseCausalInference):
             gc2 = {}
             for x2 in range(single_ts.shape[1]):
                 try:
-                    gc_res = grangercausalitytests(single_ts[:,[x1,x2]], self.maxlags)
+                    gc_res = grangercausalitytests(single_ts[:,[x1,x2]], self.maxlags, verbose=False)
                     gc_res_lags = {}
                     for lag in range(1,self.maxlags+1):
                         gc_res_lags[lag] = gc_res[lag][0]['ssr_ftest'][1]

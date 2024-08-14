@@ -22,6 +22,31 @@ class VARLiNGAM(BaseCausalInference):
         results = model.bootstrap(single_ts,n_sampling=10)
         return results.get_total_causal_effects(min_causal_effect=None)
     
+    
+    def complete_causal_df(self, causal_df, n_variables):
+        """
+        VARLiNGAM returns only the causal effects that are present in the data.
+        We want to have a complete DataFrame with all possible pairs of variables.
+        We fill the missing pairs with zeros.
+        """
+        causal_df = causal_df.copy()
+        all_pairs = [(from_, to) for from_ in range(n_variables,n_variables * (self.maxlags + 1)) for to in range(n_variables)]
+        
+        existing_pairs = set(zip(causal_df['from'], causal_df['to']))
+        missing_pairs = [(from_, to) for from_, to in all_pairs if (from_, to) not in existing_pairs]
+        
+        # Create all missing rows at once if there are any missing pairs
+        if missing_pairs:
+            missing_rows = pd.DataFrame(missing_pairs, columns=['from', 'to'])
+            missing_rows['effect'] = 0.0
+            missing_rows['p-value'] = None
+            missing_rows['probability'] = 0.0
+            missing_rows['is_causal'] = False
+            causal_df = pd.concat([causal_df, missing_rows], ignore_index=True)
+        
+        return causal_df.sort_values(by=['from', 'to']).reset_index(drop=True)
+
+
     def build_causal_df(self, total_causal_effects, n_variables):
         """
         VARLiNGAM already returns a dictionary 
@@ -42,4 +67,7 @@ class VARLiNGAM(BaseCausalInference):
         df['is_causal'] = df['probability'] > 0.5
         df = df.loc[df['from'] >= n_variables] #exclude contemporaneous effects
         df['p-value'] = None
-        return df[['from', 'to', 'effect', 'p-value', 'probability', 'is_causal']]
+
+        causal_df = df[['from', 'to', 'effect', 'p-value', 'probability', 'is_causal']]
+
+        return self.complete_causal_df(causal_df, n_variables)

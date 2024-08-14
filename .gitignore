@@ -1,5 +1,6 @@
 src/d2c/dnn/*
 docs
+data
 
 build/
 __deleteme__/

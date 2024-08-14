@@ -85,7 +85,11 @@ class D2C:
         Initialize the D2C object by computing descriptors in parallel for all observations.
 
         """
-        num_samples = self.couples_to_consider_per_dag // 3 # because 1/3 is causal A->B, 1/3 is B->A, 1/3 is other non-causal that respect time 
+        if self.couples_to_consider_per_dag == -1:
+            num_samples = -1
+        else:
+            num_samples = self.couples_to_consider_per_dag // 3 # because 1/3 is causal A->B, 1/3 is B->A, 1/3 is other non-causal that respect time 
+        
         if self.n_jobs == 1:
             results = [self.compute_descriptors_with_dag(dag_idx, dag, self.n_variables, self.maxlags, num_samples=num_samples) for dag_idx, dag in enumerate(self.DAGs)]
 
@@ -140,21 +144,35 @@ class D2C:
         x_y_couples = []
 
         all_possible_links = {(i, j) for i in range(n_variables, n_variables + n_variables * maxlags) for j in range(n_variables) if i != j}
-        causal_links = [(int(parent), int(child)) for parent, child in dag.edges]
+
+        causal_links = set([(int(parent), int(child)) for parent, child in dag.edges]).intersection(all_possible_links)
         non_causal_links = list(all_possible_links - set(causal_links))
-        subset_causal_links = np.random.permutation(causal_links)[:min(len(causal_links), num_samples)].astype(int)
-        subset_non_causal_links = np.random.permutation(non_causal_links)[:min(len(non_causal_links), num_samples)].astype(int)
 
-        # dag_idx = dag.graph['index']
+        if num_samples == -1:
+            for parent, child in causal_links:
+                x_y_couples.append(self.compute_descriptors_for_couple(dag_idx, parent, child, label=1)) # causal
+            for node_a, node_b in non_causal_links:
+                x_y_couples.append(self.compute_descriptors_for_couple(dag_idx, node_a, node_b, label=0)) # noncausal, time ordered
 
-        for parent, child in subset_causal_links:
-            x_y_couples.append(self.compute_descriptors_for_couple(dag_idx, parent, child, label=1)) # causal
-            x_y_couples.append(self.compute_descriptors_for_couple(dag_idx, child, parent, label=0)) # noncausal, not time ordered (yet informative)
-        for node_a, node_b in subset_non_causal_links:
-            x_y_couples.append(self.compute_descriptors_for_couple(dag_idx, node_a, node_b, label=0)) # noncausal, time ordered
+            self.test_couples.extend(causal_links)
+            self.test_couples.extend(non_causal_links)
+        
+        else: 
 
-        self.test_couples.extend(subset_causal_links)
-        self.test_couples.extend(subset_non_causal_links)
+            subset_causal_links = np.random.permutation(causal_links)[:min(len(causal_links), num_samples)].astype(int)
+            subset_non_causal_links = np.random.permutation(non_causal_links)[:min(len(non_causal_links), num_samples)].astype(int)
+
+            # dag_idx = dag.graph['index']
+
+            for parent, child in subset_causal_links:
+                x_y_couples.append(self.compute_descriptors_for_couple(dag_idx, parent, child, label=1)) # causal
+                x_y_couples.append(self.compute_descriptors_for_couple(dag_idx, child, parent, label=0)) # noncausal, not time ordered (yet informative)
+            for node_a, node_b in subset_non_causal_links:
+                x_y_couples.append(self.compute_descriptors_for_couple(dag_idx, node_a, node_b, label=0)) # noncausal, time ordered
+
+            self.test_couples.extend(subset_causal_links)
+            self.test_couples.extend(subset_non_causal_links)
+        
         return x_y_couples
 
 
@@ -231,6 +249,21 @@ class D2C:
         # dictionary[f'{name}_skew'] = skew(values)
         # dictionary[f'{name}_kurtosis'] = kurtosis(values)
 
+    def update_dictionary_actual_values(self, dictionary, name, values):
+        """
+        Update the given dictionary with actual values. No quantiles, no moments, just the actual descriptors.
+
+        Args:
+            dictionary (dict): The dictionary to update.
+            name (str): The name of the quantiles.
+            values (list): A list of values to compute the distirbution moments.
+
+        Returns:
+            None
+        """
+        for i, q in enumerate(values):
+            dictionary[f'{name}_{i}'] = q
+
 
     def compute_descriptors_for_couple(self, dag_idx, ca, ef, label):
         """
@@ -246,7 +279,8 @@ class D2C:
             dict: A dictionary containing the computed descriptors.
 
         """
-        pq=[0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95]
+        # pq=[0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95]
+        pq=[0.25, 0.5, 0.75]
 
         if self.normalize:
             observations = self.standardize_data(self.observations[dag_idx])
@@ -298,25 +332,25 @@ class D2C:
         # mca_mef_cau = [0] if not len(mbca_mbef_couples) else [CMI(observations[:,i], observations[:,j], c) for i, j in mbca_mbef_couples]
         mca_mef_cau = [0] if not len(mbca_mbef_couples) else [CMI(observations, i,j,c) for i, j in mbca_mbef_couples]
         if self.quantiles: self.update_dictionary_quantiles(values, 'mca_mef_cau', np.quantile(mca_mef_cau, pq))
-        else: self.update_dictionary_distribution(values, 'mca_mef_cau', mca_mef_cau)
+        else: self.update_dictionary_actual_values(values, 'mca_mef_cau', mca_mef_cau)
 
         # I(mca ; mef| effect) for (mca,mef) in mbca_mbef_couples
         # mca_mef_eff = [0] if not len(mbca_mbef_couples) else [CMI(observations[:,i], observations[:,j], e) for i, j in mbca_mbef_couples]
         mca_mef_eff = [0] if not len(mbca_mbef_couples) else [CMI(observations, i,j, e) for i, j in mbca_mbef_couples]
         if self.quantiles: self.update_dictionary_quantiles(values, 'mca_mef_eff', np.quantile(mca_mef_eff, pq))
-        else: self.update_dictionary_distribution(values, 'mca_mef_eff', mca_mef_eff)
+        else: self.update_dictionary_actual_values(values, 'mca_mef_eff', mca_mef_eff)
 
         # I(cause; m | effect) for m in MBef
         # cau_m_eff = [0] if not len(MBef) else [CMI(c, observations[:, m], e) for m in MBef]
         cau_m_eff = [0] if not len(MBef) else [CMI(observations, c, m, e) for m in MBef]
         if self.quantiles: self.update_dictionary_quantiles(values, 'cau_m_eff', np.quantile(cau_m_eff, pq))
-        else: self.update_dictionary_distribution(values, 'cau_m_eff', cau_m_eff)
+        else: self.update_dictionary_actual_values(values, 'cau_m_eff', cau_m_eff)
 
         # I(effect; m | cause) for m in MBca
         # eff_m_cau = [0] if not len(MBca) else [CMI(e, observations[:, m], c) for m in MBca]
         eff_m_cau = [0] if not len(MBca) else [CMI(observations,e, m, c) for m in MBca]
         if self.quantiles: self.update_dictionary_quantiles(values, 'eff_m_cau', np.quantile(eff_m_cau, pq))
-        else: self.update_dictionary_distribution(values, 'eff_m_cau', eff_m_cau)
+        else: self.update_dictionary_actual_values(values, 'eff_m_cau', eff_m_cau)
 
 
         if self.full:
@@ -325,7 +359,7 @@ class D2C:
             # m_cau = [0] if not len(MBef) else [CMI(c, observations[:, m]) for m in MBef]
             m_cau = [0] if not len(MBef) else [CMI(observations, c, m) for m in MBef]
             if self.quantiles: self.update_dictionary_quantiles(values, 'm_cau', np.quantile(m_cau, pq))
-            else: self.update_dictionary_distribution(values, 'm_cau', m_cau)
+            else: self.update_dictionary_actual_values(values, 'm_cau', m_cau)
 
             # I(cause; effect | common_causes)
             # values['com_cau'] = CMI(e, c, observations[:, common_causes])
@@ -352,32 +386,32 @@ class D2C:
             # eff_cau_mbcau_plus = [0] if not len(MBef) else [CMI(c, e, observations[:,np.unique(np.concatenate(([m], MBca)))]) for m in MBef]
             eff_cau_mbcau_plus = [0] if not len(MBef) else [CMI(observations, c, e, np.unique(np.concatenate(([m], MBca)))) for m in MBef]
             if self.quantiles: self.update_dictionary_quantiles(values, 'eff_cau_mbcau_plus', np.quantile(eff_cau_mbcau_plus, pq))
-            else: self.update_dictionary_distribution(values, 'eff_cau_mbcau_plus', eff_cau_mbcau_plus)
+            else: self.update_dictionary_actual_values(values, 'eff_cau_mbcau_plus', eff_cau_mbcau_plus)
             
             # I(cause; effect | arrays_m_plus_MBef)
             # cau_eff_mbeff_plus = [0] if not len(MBca) else [CMI(e, c, observations[:,np.unique(np.concatenate(([m], MBef)))]) for m in MBca]
             cau_eff_mbeff_plus = [0] if not len(MBca) else [CMI(observations, e, c, np.unique(np.concatenate(([m], MBef)))) for m in MBca]
             if self.quantiles: self.update_dictionary_quantiles(values, 'cau_eff_mbeff_plus', np.quantile(cau_eff_mbeff_plus, pq))
-            else: self.update_dictionary_distribution(values, 'cau_eff_mbeff_plus', cau_eff_mbeff_plus)
+            else: self.update_dictionary_actual_values(values, 'cau_eff_mbeff_plus', cau_eff_mbeff_plus)
 
 
             # I(m; effect) for m in MBca
             # m_eff = [0] if not len(MBca) else [CMI(e, observations[:, m]) for m in MBca]
             m_eff = [0] if not len(MBca) else [CMI(observations, e, m) for m in MBca]
             if self.quantiles: self.update_dictionary_quantiles(values, 'm_eff', np.quantile(m_eff, pq))
-            else: self.update_dictionary_distribution(values, 'm_eff', m_eff)
+            else: self.update_dictionary_actual_values(values, 'm_eff', m_eff)
 
             #I(mca ; mca| cause) - I(mca ; mca) for (mca,mca) in mbca_couples
             # mca_mca_cau = [0] if not len(mbca_mbca_couples) else [CMI(observations[:,i], observations[:,j], c) - CMI(observations[:,i], observations[:,j]) for i, j in mbca_mbca_couples]
             mca_mca_cau = [0] if not len(mbca_mbca_couples) else [CMI(observations,i,j, c) - CMI(observations,i,j) for i, j in mbca_mbca_couples]
             if self.quantiles: self.update_dictionary_quantiles(values, 'mca_mca_cau', np.quantile(mca_mca_cau, pq))
-            else: self.update_dictionary_distribution(values, 'mca_mca_cau', mca_mca_cau)
+            else: self.update_dictionary_actual_values(values, 'mca_mca_cau', mca_mca_cau)
 
             # I(mbe ; mbe| effect) - I(mbe ; mbe) for (mbe,mbe) in mbef_couples
             # mbe_mbe_eff = [0] if not len(mbef_mbef_couples) else [CMI(observations[:,i], observations[:,j], e) - CMI(observations[:,i], observations[:,j]) for i, j in mbef_mbef_couples]
             mbe_mbe_eff = [0] if not len(mbef_mbef_couples) else [CMI(observations, i,j, e) - CMI(observations,i,j) for i, j in mbef_mbef_couples]
             if self.quantiles: self.update_dictionary_quantiles(values, 'mbe_mbe_eff', np.quantile(mbe_mbe_eff, pq))
-            else: self.update_dictionary_distribution(values, 'mbe_mbe_eff', mbe_mbe_eff)
+            else: self.update_dictionary_actual_values(values, 'mbe_mbe_eff', mbe_mbe_eff)
 
             values['n_samples'] = observations.shape[0]
             values['n_features'] = observations.shape[1]

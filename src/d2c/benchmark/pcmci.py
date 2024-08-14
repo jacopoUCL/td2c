@@ -2,7 +2,8 @@ from d2c.benchmark.base import BaseCausalInference
 
 from tigramite.pcmci import PCMCI as PCMCI_
 from tigramite.independence_tests.parcorr import ParCorr
-from tigramite.independence_tests.cmiknn import CMIknn
+# from tigramite.independence_tests.cmiknn import CMIknn
+from tigramite.independence_tests.gpdc import GPDC
 
 import tigramite.data_processing as pp
 
@@ -21,7 +22,11 @@ class PCMCI(BaseCausalInference):
         if self.CI == 'ParCorr':
             cond_ind_test = ParCorr()
         elif self.CI == 'CMIknn':
-            cond_ind_test = CMIknn()
+            # cond_ind_test = CMIknn()
+            raise NotImplementedError('This CI is not yet implemented')
+
+        elif self.CI == 'GPDC':
+            cond_ind_test = GPDC()
         else:
             raise NotImplementedError('This CI is not yet implemented')
 

@@ -17,6 +17,8 @@ setup(
         'lingam',
         'imblearn',
         'cachetools',
-        'causalnex'
+        'causalnex',
+        'seaborn',
+        'dcor',
     ],
 )
