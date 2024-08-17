@@ -62,3 +62,6 @@ myenv3.8/
 
 # paper_td2c
 notebooks/paper_td2c/
+
+# model.plk
+notebooks/contributions/Real_data_validation/model.pkl
