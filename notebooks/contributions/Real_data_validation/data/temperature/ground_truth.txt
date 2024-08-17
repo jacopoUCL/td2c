@@ -1,0 +1,2 @@
+From -> To
+Outdoor temperature -> Indoor temperature
