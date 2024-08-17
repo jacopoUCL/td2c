@@ -53,3 +53,12 @@ ENV/
 *.tmp
 *.swp
 *.DS_Store
+
+# python 3.8.19
+Python-3.8.19/
+
+# myenv3.8
+myenv3.8/
+
+# paper_td2c
+notebooks/paper_td2c/

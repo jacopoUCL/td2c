@@ -1,0 +1,65 @@
+1 Antivirus activity: Impacts of antivirus activity in servers.
+                      13 time series such that 3 of them are collected with a one-minute 
+                      sampling rate and the rest with a five-minute sampling rate.
+                      The two processed datasets consist of 1321 timestamps.
+                    - preprocessed 1
+                    - preprocessed 2
+                    Ground truth:
+                        memory_usage_Portal -> Physical_Memory_prct_used_Portal
+                        cpu_usage_Portal -> cpu_prct_used_Portal
+                        Physical_Memory_prct_used_Portal -> 0_C_read_Portal
+                        cpu_prct_used_Portal -> 0_C_read_Portal
+                        memory_usage_VDI -> Physical_Memory_prct_used_VDI
+                        cpu_usage_VDI -> cpu_prct_used_VDI
+                        Physical_Memory_prct_used_VDI -> 0_C_read_VDI
+                        cpu_prct_used_VDI -> 0_C_read_VDI
+                        Physical_Memory_prct_used_Portal -> Chargement_portail
+                        cpu_prct_used_Portal -> Chargement_portail
+                        0_C_read_Portal -> Chargement_portail
+                        Physical_Memory_prct_used_VDI -> Chargement_IE
+                        cpu_prct_used_VDI -> Chargement_IE
+                        0_C_read_VDI -> Chargement_IE
+                        Chargement_portail -> Default_Transaction
+                        Chargement_IE -> Default_Transaction
+
+2 Dairy markets: Ten years (from 09/2008 to 12/2018) of monthly prices for milk M, butter B, and
+                 cheddar cheese C, so the three time series are of length 124.
+                 Ground truth: B <- M -> C
+                           0 0 0 
+                 adj.mat = 1 0 1
+                           0 0 0
+5 Temperature: Bivariate time series of length 168 about indoor I and outdoor O measurements
+               Ground truth: O -> I
+               
+               adj.mat = 0 1
+                         0 0 
+6 Veilleux: Interactions between predatory ciliate Dinidum nasutum and its prey Paramecium aurelia with different values of
+            Cerophyl concentrations (CC): 0.375 and 0.5. The lengths of the time series are 71 and 65.
+            - CC05a
+            - CC035
+            Ground truth: P -> D in both cases
+
+            adj.mat = 0 1
+                      1 0
+     
+7 Web activity: Activity in a web server which is provided by EasyVista
+                Ten time series collected with a one-minute sampling rate.
+                The two processed datasets contain 3000 timestamps.
+                - preprocessed 1
+                - preprocessed 2
+                Ground truth:
+                    Net_In_Global -> Net_Out_Global
+                    Net_In_Global -> Nb_process_http
+                    Net_In_Global -> Nb_connection_mysql
+                    Nb_process_http -> Cpu_http
+                    Nb_process_http -> Nb_process_php
+                    Nb_process_http -> Ram_http
+                    Nb_process_php -> Cpu_php
+                    Nb_process_php -> Nb_connection_mysql
+                    Nb_connection_mysql -> Net_Out_Global
+                    Nb_connection_mysql -> Disque_write_global
+                    Nb_connection_mysql -> Cpu_global
+                    Cpu_http -> Cpu_global
+                    Cpu_php -> Cpu_global
+                    Disque_write_global -> Cpu_global
+
