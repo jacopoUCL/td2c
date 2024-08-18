@@ -1,0 +1,13 @@
+Computational cost resuction
+    Done some variable (descriptors) selection but lost the files, need to rebuild the notebooks
+    
+Linear processes validation
+
+td2c extensions
+    Set up work by listing some possible modifications of MI computation and MB estimation
+
+Real data validation
+    tested the datasets from Hybrid... paper, bad results even lowering the treshold for classification
+    should try with bigger datasets (could be better given what written in td2c paper conclusion)
+
+Useful notebooks
