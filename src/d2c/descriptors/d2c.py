@@ -6,6 +6,7 @@ from scipy.stats import kurtosis, skew
 from d2c.descriptors.utils import coeff, HOC
 from d2c.descriptors.estimators import MarkovBlanketEstimator, MutualInformationEstimator
 
+# class for D2C and TD2C
 class D2C:
     """
     D2C class for computing descriptors in a time series dataset.
@@ -300,7 +301,7 @@ class D2C:
         mbef_mbef_couples = [(i, j) for i in range(len(MBef)) for j in range(len(MBef)) if i != j]
 
         
-        # e, c = observations[:, ef], observations[:, ca] #aliases 'e' and 'c' for brevity
+        # e, c = observations[:, ef], observations[:, ca] #aliases 'e' and 'c' for brevity (to add spouses)
         e,c  = ef,ca
         if 'cmiknn' in self.cmi:
             CMI = self.mutual_information_estimator.estimate_knn_cmi # alias for mutual information estimator function, for brevity
@@ -351,6 +352,8 @@ class D2C:
         eff_m_cau = [0] if not len(MBca) else [CMI(observations,e, m, c) for m in MBca]
         if self.quantiles: self.update_dictionary_quantiles(values, 'eff_m_cau', np.quantile(eff_m_cau, pq))
         else: self.update_dictionary_actual_values(values, 'eff_m_cau', eff_m_cau)
+
+        # I(cause; spouse | effect, to add
 
 
         if self.full:
@@ -434,3 +437,9 @@ class D2C:
 
     def get_test_couples(self):
         return self.test_couples
+
+# class for iterative TD2C
+
+# class for TD2C helping
+
+# class for competitors helping

@@ -14,6 +14,10 @@ from sklearn.base import BaseEstimator, RegressorMixin
 import time
 
 
+###################################################################################################################################
+   # MB ESTIMATORS: BASED ON FEATURE RANKING, LAGGED VALUES AND SOME OTHER MB MIXING STRATEGIES           
+################################################################################################################################### 
+
 class MarkovBlanketEstimator:
     def __init__(self, size=5, n_variables=5, maxlags=5, verbose=True):
         """
@@ -70,6 +74,7 @@ class MarkovBlanketEstimator:
         
         return ranked_indices
 
+# MB estimation for d2c
     def estimate(self, dataset, node):
         """
         Estimates the Markov Blanket for a given node using feature ranking.
@@ -93,7 +98,7 @@ class MarkovBlanketEstimator:
         sorted_ind = candidates_positions[order]
         
         return sorted_ind[:self.size]
-    
+# MB estimation for td2c
     def estimate_time_series(self, dataset, node):
         '''
         The idea is to leverage the fact that we are in a temporal context and we know that x_t-1 is in the markov blanked of x_t. As well as x_t+1. 
@@ -102,16 +107,97 @@ class MarkovBlanketEstimator:
         |X1,X2,X3|X1_t-1,X2_t-1,X3_t-1|X1_t-2,X2_t-2,X3_t-2|
         in fact, it's just (node + n_variables) and (node - n_variables) when they exist!
         '''
-        # print('Estimating MB for node', node)
+        print('Estimating MB for node', node)
         mb = np.array([])
         if node + self.n_variables < dataset.shape[1]:
             mb = np.append(mb, node + self.n_variables)
         if node - self.n_variables >= 0:
             mb = np.append(mb, node - self.n_variables)
-        # print('Markov Blanket:', mb)
+        print('Markov Blanket:', mb)
         # make mb type int
         return mb.astype(int)
-    
+
+# MB estimation for td2c + ranking 
+    def estimate_time_series_ranking(self, dataset, node):
+        '''
+        '''
+        print('Estimating MB for node', node)
+        mb = np.array([])
+        if node + self.n_variables < dataset.shape[1]:
+            mb = np.append(mb, node + self.n_variables)
+        if node - self.n_variables >= 0:
+            mb = np.append(mb, node - self.n_variables)
+        print('Markov Blanket:', mb)
+        # make mb type int
+        mb = mb.astype(int)
+        # rank the features
+        n = dataset.shape[1]
+        candidates_positions = np.array(list(set(range(n)) - set(mb) - {node}))
+        Y = dataset[:, node]
+        
+        # Exclude the target node from the dataset for ranking
+        X = dataset[:, candidates_positions]
+        
+        order = self.rank_features(X, Y, regr=False)
+        sorted_ind = candidates_positions[order]
+        
+        return np.append(mb, sorted_ind[:self.size])
+
+# MB estimation for td2c with extended ancestors (X_t-i, for i > 1)
+    def estimate_time_series_extended(self, dataset, node):
+        '''
+        '''
+        print('Estimating MB for node', node)
+        mb = np.array([])
+        if node + self.n_variables < dataset.shape[1]:
+            mb = np.append(mb, node + self.n_variables)
+        if node - self.n_variables >= 0:
+            mb = np.append(mb, node - self.n_variables)
+        print('Markov Blanket:', mb)
+        # make mb type int
+        mb = mb.astype(int)
+        # extend the markov blanket
+        for i in range(2, self.maxlags + 1):
+            if node + i * self.n_variables < dataset.shape[1]:
+                mb = np.append(mb, node + i * self.n_variables)
+            if node - i * self.n_variables >= 0:
+                mb = np.append(mb, node - i * self.n_variables)
+        return mb
+
+# MB estimation for td2c with MI estimated for X_i, X_j and their respective most relevant variable(s)
+#   - Can try with only the most important variable
+#   - Can try with the top 2 most important variables
+#   - Can try with the top 3 most important variables
+    def estimate_time_series_mi(self, dataset, node):
+        '''
+        '''
+        print('Estimating MB for node', node)
+        mb = np.array([])
+        if node + self.n_variables < dataset.shape[1]:
+            mb = np.append(mb, node + self.n_variables)
+        if node - self.n_variables >= 0:
+            mb = np.append(mb, node - self.n_variables)
+        print('Markov Blanket:', mb)
+        # make mb type int
+        mb = mb.astype(int)
+        # rank the features
+        n = dataset.shape[1]
+        candidates_positions = np.array(list(set(range(n)) - set(mb) - {node}))
+        Y = dataset[:, node]
+        
+        # Exclude the target node from the dataset for ranking
+        X = dataset[:, candidates_positions]
+        
+        order = self.rank_features(X, Y, regr=False)
+        sorted_ind = candidates_positions[order]
+        # get the top 3 most important variables
+        top3 = sorted_ind[:3]
+        # get the top 2 most important variables
+        top2 = sorted_ind[:2]
+        # get the top 1 most important variable
+        top1 = sorted_ind[:1]
+        return np.append(mb, top3)
+
 cache = Cache(maxsize=1024)  # Define cache size
 
 def custom_hashkey(*args, **kwargs):
@@ -143,10 +229,14 @@ def mse(X, y, cv):
     neg_mean_squared_error_folds = cross_val_score(Ridge(alpha=1e-3), X, y, scoring='neg_mean_squared_error', cv=cv)
     return max(1e-3, -np.mean(neg_mean_squared_error_folds)) #we set 0.001 as a lower bound
 
-  
 
+
+###################################################################################################################################
+   # MUTUAL INFORMATION ESTIMATORS: KNNCMI, AND THE ONES BASED ON ERROR ESTIMATION (LOWESS, RIDGE REGRESSION AND RANDOM FOREST)           
+###################################################################################################################################  
+
+# PROXY CLASS FOR MUTUAL INFORMATION ESTIMATION BY ESTIMATING THE ERROR IN PREDICTING Y FROM X (AND X2) AND KNNCMI
 class MutualInformationEstimator: 
-
     def __init__(self, proxy='Ridge', proxy_params=None, k=3):
         """
         Initializes the Mutual Information Estimator with specified regression proxy and parameters.
@@ -231,10 +321,9 @@ class MutualInformationEstimator:
             mutual_information = 1 - entropy_y_given_x1_x2 / entropy_y_given_x2
             return max(0, mutual_information)
         
-
     def estimate_knn_cmi(self, dataset, y_index, x1_index, x2_index = None):
         """
-
+        Estimates the conditional mutual information of x1 to y given x2 using the KNNCMI algorithm.
         """
         import knncmi
         import pandas as pd
@@ -263,9 +352,7 @@ class MutualInformationEstimator:
         else: 
             return knncmi.cmi(y_name, x1_name, x2_name, self.k, dataset)
 
-        
-
-
+# LOWESS
 class LOWESS(BaseEstimator, RegressorMixin):
     def __init__(self, tau):
         self.tau = tau
@@ -311,3 +398,4 @@ class LOWESS(BaseEstimator, RegressorMixin):
             preds[i] = pred
 
         return preds.reshape(-1, 1)
+    
