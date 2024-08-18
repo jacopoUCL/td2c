@@ -232,7 +232,7 @@ def mse(X, y, cv):
 
 
 ###################################################################################################################################
-   # MUTUAL INFORMATION ESTIMATORS: KNNCMI, AND THE ONES BASED ON ERROR ESTIMATION (LOWESS, RIDGE REGRESSION AND RANDOM FOREST)           
+   # MI ESTIMATORS: KNNCMI (td2c), THE ONES BASED ON ERROR ESTIMATION (LOWESS, RIDGE REG AND RF) (d2c) AND SOME MIXING STRATEGIES          
 ###################################################################################################################################  
 
 # PROXY CLASS FOR MUTUAL INFORMATION ESTIMATION BY ESTIMATING THE ERROR IN PREDICTING Y FROM X (AND X2) AND KNNCMI
@@ -398,4 +398,56 @@ class LOWESS(BaseEstimator, RegressorMixin):
             preds[i] = pred
 
         return preds.reshape(-1, 1)
+
+
+# MERGING KNN-CMI AND REGRESSION METHODS:
+# to potentially achieve more accurate or robust mutual information estimates.
+# KNN-CMI is a non-parametric method that does not assume any specific functional form of the relationship between variables. 
+# It works well for both linear and non-linear dependencies. However, its flexibility might lead to less precise estimates when the 
+# underlying relationship is simple and linear.
+# Regression methods, especially linear regression (like Ridge regression), are naturally suited to linear relationships. 
+# They model the dependency between variables directly as a linear function, leading to more precise and interpretable estimates 
+# of mutual information in such cases.
+
+    # Ensemble Approach:
+        # Combine Outputs: Calculate mutual information using both the KNN-CMI and regression methods separately, then combine the 
+        #   results. This could involve averaging the estimates, or applying a weighted average depending on how 
+        #   confident you are in each method for the specific dataset.
+        # Adaptive Weighting: Assign different weights to the KNN-CMI and regression-based estimates depending on the 
+        #   characteristics of the data (e.g., linearity, noise level, dimensionality).
+        # Cross-Validation: You could use cross-validation to determine the optimal combination or weighting of the two methods. 
+        #   For instance, if you notice that one method consistently performs better on certain data types, you 
+        #   could prioritize that method in those cases.
+
+    # Hybrid Method:
+        # Feature Engineering: Use KNN-CMI as a non-parametric method to capture complex dependencies and use regression-based 
+        #   methods to model linear or near-linear relationships. Combine the strengths of both by integrating 
+        #   outputs or using KNN to preprocess the data before applying regression.
     
+    # Sequential Approach:
+        # Preprocessing: Use KNN-CMI to identify potential non-linear relationships and select relevant features. Then,
+        #   apply regression-based methods to estimate mutual information on the reduced feature set.
+        # Model Selection: Use KNN-CMI to guide the selection of appropriate regression models or hyperparameters based on the
+        #   complexity of the relationships in the data.
+
+    
+
+# OTHER POSSIBLE METHODS TO IMPLEMENT:
+    # 1. Parametric Methods
+        # Gaussian Estimator: Assumes that the data follows a multivariate Gaussian distribution. Mutual information is then calculated based on the covariance matrix of the data.
+        # Kernel Density Estimation (KDE): Uses kernel density estimates to approximate the probability densities of the variables and then computes mutual information from these densities.
+    # 2. Non-Parametric Methods
+        # Histogram-Based Estimators: Discretizes continuous data into bins and estimates mutual information based on the resulting histograms.
+        # Maximal Information Coefficient (MIC): MIC is designed to capture a wide range of associations between variables, including linear and non-linear relationships.
+    # 3. Entropy-Based Methods
+        # Plug-in Estimator: Directly estimates entropy by plugging in empirical distributions from the data into the entropy formula.
+        # Nearest-Neighbor Estimators: Estimates entropy and mutual information based on distances to the nearest neighbors in the data space (similar to KNN-CMI but focuses on entropy estimation).
+    # 4. Model-Based Methods
+        # Copula-Based Methods: Uses copulas to model the dependency structure between variables separately from their marginal distributions. Mutual information is then computed based on these models.
+        # Information Bottleneck Method: Uses a neural network-based approach to compress the input data while preserving relevant information. Mutual information is estimated from the network's internal representations.
+    # 5. Resampling-Based Methods
+        # Bootstrap-Based Estimators: Estimates mutual information by resampling the data and computing empirical distributions.
+    # 6. Adaptive Partitioning Methods
+        # Adaptive Partitioning: Dynamically partitions the data space based on the density of observations, leading to an adaptive grid for estimating mutual information.
+    # 7. Monte Carlo Estimators
+        # Monte Carlo Integration: Estimates mutual information by integrating over the joint and marginal distributions using Monte Carlo methods.
