@@ -11,7 +11,7 @@ class D2CWrapper(BaseCausalInference):
     This method - differently from the D2C class - can be executed directly on a raw time series and will perform 
     complete causal discovery of all possible edges. 
 
-    Notice that this works on a single time series and not on a list. 
+    Notice that this works on a single time series and not on a list. (Why??)
 
     Parameters:
     - n_variables (int): Number of variables in the dataset. Default is 6.
@@ -26,7 +26,11 @@ class D2CWrapper(BaseCausalInference):
     - infer(single_ts, **kwargs): Performs causal inference on a single time series.
     - build_causal_df(results): Builds the causal dataframe from the results.
 
+    Returns:
+    - results: The results of the causal inference in a dataframe format.
     """
+# It gives back the edges only, in the format: edge_source, edge_dest, probability, is_causal.
+# Could add a function to return a DAG from the edges.
 
     def __init__(self, *args, **kwargs):
         """

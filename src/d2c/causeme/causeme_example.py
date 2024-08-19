@@ -105,8 +105,6 @@ def my_method(data, clf=RandomForestClassifier(n_estimators=100, max_depth=2, ra
 
     return val_matrix, 1 - thresholded_val_matrix, lag_matrix #as pvalues we return 1 - val_matrix
 
-
-
 def process_zip_file(name, method, clf, maxlags=1, n_variables=3):
     print("\rRun on {}".format(name), end='', flush=True)
     data = np.loadtxt('experiments/'+name[:-9]+'/'+name)
@@ -128,9 +126,14 @@ def process_zip_file(name, method, clf, maxlags=1, n_variables=3):
 
     return score, pvalue, lag, runtime
 
-
 if __name__ == '__main__':
-    
+    """
+    This script can be used to iterate over the datasets of a particular experiment.
+    Below you import your function "my_method" stored in the module causeme_my_method.  
+    """
+    # The if __name__ == '__main__': is necessary for multiprocessing on Windows: it protects the entry point of the program.
+    # I.e., it ensures that the code will only be executed if the script is run directly, not if it is imported as a module.
+    # This is necessary for Windows, because Windows does not have a fork system call, so it needs to import the script as a module.
 
     shas = {"granger":"d7e314aaffaf428b912f046eebf77a19",
             "pcmci":"8cdc476ef289424c9389a83d1a0a16c3",
