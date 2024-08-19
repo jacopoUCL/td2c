@@ -39,8 +39,7 @@ class TSBuilder():
         self.generated_dags = {}
         self.neighbors = {}     
 
-
-    # def _generate_random_excluding_zero(self, max_time_lag, n_variables, exclusion_zone=0.1):
+# def _generate_random_excluding_zero(self, max_time_lag, n_variables, exclusion_zone=0.1):
     #     result = np.zeros((max_time_lag, n_variables))
     #     for i in range(max_time_lag):
     #         for j in range(n_variables):

@@ -432,7 +432,7 @@ class LOWESS(BaseEstimator, RegressorMixin):
 
     
 
-# OTHER POSSIBLE METHODS TO IMPLEMENT:
+# OTHER POSSIBLE METHODS FOR MI ESTIMATION TO IMPLEMENT:
     # 1. Parametric Methods
         # Gaussian Estimator: Assumes that the data follows a multivariate Gaussian distribution. Mutual information is then calculated based on the covariance matrix of the data.
         # Kernel Density Estimation (KDE): Uses kernel density estimates to approximate the probability densities of the variables and then computes mutual information from these densities.

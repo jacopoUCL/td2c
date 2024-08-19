@@ -1,3 +1,8 @@
+"""
+This module contains the models used to generate the data. Each model is a class that inherits from BaseModel.
+The models are registered in the model_registry dictionary, which is used to retrieve the models based on their IDs.
+"""
+
 import math
 import networkx as nx
 
@@ -18,7 +23,6 @@ def sign(x):
     Sign function.
     """
     return -1 if x < 0 else (1 if x > 0 else 0)
-
 
 def add_edges(G, T, N, N_j, time_from):
         """
@@ -41,6 +45,9 @@ def add_edges(G, T, N, N_j, time_from):
         return G
 
 class ModelRegistry:
+    """
+    Registry for the models used to generate the data.
+    """
     def __init__(self):
         self.registry = {}
 
@@ -62,6 +69,10 @@ class ModelRegistry:
 model_registry = ModelRegistry()
 
 class BaseModel:
+    """
+    Base class for the models used to generate the data. 
+    Each model should inherit from this class and implement the update method.
+    """
     def __init__(self):
         self.time_from = [None] #from t -> t+1
 

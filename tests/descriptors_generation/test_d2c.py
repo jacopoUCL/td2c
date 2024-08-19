@@ -3,7 +3,7 @@ import pytest
 import networkx as nx
 import pandas as pd
 import numpy as np
-from d2c.descriptors import D2C
+from d2c.descriptors_generation import D2C
 
 # Fixture for a simple DAG and observations
 @pytest.fixture

@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from d2c.descriptors.estimators import MarkovBlanketEstimator
+from d2c.descriptors_generation.estimators import MarkovBlanketEstimator
 
 def test_initialization():
     estimator = MarkovBlanketEstimator(size=5, verbose=True)

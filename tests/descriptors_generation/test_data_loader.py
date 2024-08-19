@@ -5,7 +5,7 @@ import pickle
 import pytest
 import os
 from unittest.mock import Mock
-from d2c.descriptors.loader import DataLoader  # Adjust import path as needed
+from d2c.descriptors_generation.loader import DataLoader  # Adjust import path as needed
 
 from d2c.data_generation.builder import TSBuilder # Could be mocked
 
@@ -99,7 +99,6 @@ def test_from_tsbuilder(mocker):
     loader.from_tsbuilder(mock_builder)
     assert len(loader.observations) == 1
     assert len(loader.dags) == 1
-
 
 def test_causal_df():
 

@@ -4,7 +4,7 @@ import pytest
 from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_squared_error
 
-from d2c.descriptors.estimators import MutualInformationEstimator, LOWESS, mse
+from d2c.descriptors_generation.estimators import MutualInformationEstimator, LOWESS, mse
 
 @pytest.fixture
 def default_mi_estimator():

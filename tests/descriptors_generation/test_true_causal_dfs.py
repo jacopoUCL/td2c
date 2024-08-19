@@ -5,7 +5,7 @@ import math
 import pytest
 from d2c.data_generation.builder import TSBuilder  
 from d2c.data_generation.models import model_registry  
-from d2c.descriptors import DataLoader
+from d2c.descriptors_generation import DataLoader
 import networkx as nx
 
 @pytest.fixture

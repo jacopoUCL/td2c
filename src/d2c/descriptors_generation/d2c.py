@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 from scipy.stats import kurtosis, skew
 
-from d2c.descriptors.utils import coeff, HOC
-from d2c.descriptors.estimators import MarkovBlanketEstimator, MutualInformationEstimator
+from d2c.descriptors_generation.utils import coeff, HOC
+from d2c.descriptors_generation.estimators import MarkovBlanketEstimator, MutualInformationEstimator
 
 # class for D2C and TD2C
 class D2C:
@@ -353,7 +353,7 @@ class D2C:
         if self.quantiles: self.update_dictionary_quantiles(values, 'eff_m_cau', np.quantile(eff_m_cau, pq))
         else: self.update_dictionary_actual_values(values, 'eff_m_cau', eff_m_cau)
 
-        # I(cause; spouse | effect, to add
+        # I(cause; spouse | effect), to add
 
 
         if self.full:

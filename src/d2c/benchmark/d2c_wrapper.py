@@ -1,7 +1,7 @@
 import pandas as pd
 from d2c.benchmark.base import BaseCausalInference
-from d2c.descriptors.loader import DataLoader
-from d2c.descriptors.d2c import D2C as D2C_
+from d2c.descriptors_generation.loader import DataLoader
+from d2c.descriptors_generation.d2c import D2C as D2C_
 
 
 class D2CWrapper(BaseCausalInference):
