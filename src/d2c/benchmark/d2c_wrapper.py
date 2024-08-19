@@ -95,7 +95,6 @@ class D2CWrapper(BaseCausalInference):
 
         return results
         
-    
     def build_causal_df(self, results, n_variables):
         """
         Build the causal dataframe from the results.

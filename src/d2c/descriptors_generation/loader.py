@@ -1,3 +1,10 @@
+"""
+This module contains the DataLoader class, which is responsible for loading and processing data for descriptors computation.
+The DataLoader class contains methods for loading data from a pickle file or a TimeSeriesBuilder 
+(that comes from the data generation process), object, and for creating lagged time series observations. 
+The DataLoader class also contains a method for renaming the nodes of the DAGs to match the descriptor convention.
+It also contains a method for getting the lagged time series observations and the renamed DAGs.
+"""
 
 import pickle
 import numpy as np
@@ -52,6 +59,7 @@ class DataLoader():
         """
         list_of_arrays = [dict_of_dicts[process][ts] for process in sorted(dict_of_dicts.keys()) for ts in sorted(dict_of_dicts[process].keys())]
         return list_of_arrays
+   
     @staticmethod
     def _rename_dags(dags, n_variables):
         """
@@ -79,8 +87,6 @@ class DataLoader():
             updated_dags.append(dag)
         return updated_dags
     
-
-
     @staticmethod
     def _create_lagged_multiple_ts(observations, maxlags):
         """
@@ -110,6 +116,7 @@ class DataLoader():
         for i in range(1, maxlags+1):
             lagged = np.concatenate((lagged, np.roll(obs, i, axis=0)), axis=1) #np roll brings last values to the top
         return lagged[maxlags:]
+
 
     def from_pickle(self, data_path):
         """
@@ -155,7 +162,6 @@ class DataLoader():
         """
         return self.observations
     
-
     def get_dags(self):
         """
         Get the DAGs after having renamed the nodes.

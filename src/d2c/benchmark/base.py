@@ -1,3 +1,11 @@
+"""
+Base class for causal inference methods. It provides a common interface for all causal inference methods that
+is going to be used in the benchmarking process. 
+
+It also provides a common interface for the evaluation of the
+methods. The evaluation is based on the following metrics: accuracy, precision, recall, f1, balanced_error and ROC-AUC.
+"""
+
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, balanced_accuracy_score
 from multiprocessing import Pool
 import numpy as np
@@ -5,6 +13,10 @@ import pandas as pd
 import pickle
 
 class BaseCausalInference:
+    """
+    Base class for the benchmarking methods. All of them are going to inherit from this class.
+    """
+
     def __init__(self, ts_list, maxlags=3, ground_truth=None, n_jobs=1, suffix=''):
 
         if n_jobs < 1:
@@ -21,27 +33,40 @@ class BaseCausalInference:
         self.p_value_matrices = {}
         self.lag_matrices = {}
         
-
     def standardize(self, single_ts):
+        """
+        Standardize the time series data.        
+        """
         # Standardize data
         single_ts -= single_ts.mean(axis=0)
         single_ts /= single_ts.std(axis=0)
         return single_ts
 
     def infer(self, single_ts,**kwargs):
+        """
+        Infer causal relationships from a single time series.
+        """
         pass
     
     def build_causal_df(self, results, n_variables):
+        """
+        Build a pandas DataFrame from the results of the causal inference method.
+        """
         pass
 
     def process_ts(self, ts_tuple):
+        """
+        Process a single time series.
+        """
         ts_index, ts = ts_tuple
         results = self.infer(ts, ts_index=ts_index)
         causal_df = self.build_causal_df(results, ts.shape[1])
         return ts_index, causal_df
 
     def run(self):
-
+        """
+        Run the causal inference method for all time series.
+        """
         ts_tuples = list(enumerate(self.ts_list))
         if self.n_jobs == 1:
             for ts_index, ts in ts_tuples:
@@ -55,8 +80,10 @@ class BaseCausalInference:
 
         return self
     
-
     def build_causeme_matrices(self, n_variables):
+        """
+        Build the causal matrices, p-value matrices and lag matrices from the causal dataframes.
+        """
         # assumes causal dfs are available
         for ts_index, causal_df in self.causal_dfs.items():
             causal_df_2 = causal_df.reset_index(drop=False) 
@@ -85,27 +112,51 @@ class BaseCausalInference:
                         self.lag_matrices[ts_index][source_variable_index, target_variable_index] = lag
 
     def get_causal_matrices(self):
+        """
+        Returns the causal matrices.
+        """
         return self.causal_matrices
 
     def get_p_value_matrices(self):
+        """
+        Returns the p-value matrices.
+        """
         return self.p_value_matrices
     
     def get_lag_matrices(self):
+        """
+        Returns the lag matrices.
+        """
         return self.lag_matrices
     
     def get_causeme_matrices(self):
+        """
+        Returns the causal matrices, p-value matrices and lag matrices.
+        """
         return self.causal_matrices, self.p_value_matrices, self.lag_matrices
 
     def get_causal_dfs(self):
+        """
+        Returns the causal dataframes.
+        """
         return self.causal_dfs
 
     def set_causal_dfs(self, causal_dfs):
+        """
+        Set the causal dataframes.
+        """
         self.causal_dfs = causal_dfs
     
     def set_ground_truth(self, causal_dfs):
+        """
+        Set the ground truth dataframes.
+        """
         self.ground_truth = causal_dfs
     
     def filter_causal_dfs(self, d2c_causal_dfs):
+        """
+        Filter the causal dataframes based on the indexes of the d2c causal dataframes.
+        """
         indexes = {}
         for i, df in d2c_causal_dfs.items():
             indexes[i] = list(df.index)
@@ -136,10 +187,11 @@ class BaseCausalInference:
 
         return predictions
 
-
-
     def evaluate(self):
-        
+        """
+        Evaluate the causal inference method based on the following metrics: accuracy, precision, 
+        recall, f1, balanced_error and ROC-AUC.
+        """
         metrics = []
         for ts_idx in range(len(self.ts_dict)):
             # print('\revaluating', ts_idx, 'of', len(self.ts_list), end='', flush=True)
@@ -162,6 +214,9 @@ class BaseCausalInference:
         return metrics
 
     def save_causal_dfs(self, name):
+        """
+        Save the causal dataframes to a pickle file.
+        """
         method_name = self.__class__.__name__ + self.suffix
         with open('../data/'+name+'_'+method_name+'_causal_dfs.pkl', 'wb') as f:
             pickle.dump(self.causal_dfs, f)

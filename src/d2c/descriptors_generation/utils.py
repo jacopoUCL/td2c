@@ -15,7 +15,7 @@ from datetime import datetime
 
 ############################################################################################################
 #######   COMMENTED OUT FOR NOW because it is compacted in the above function  ############################
-#               ############################################################################################################
+#############################################################################################################
 def ridge_regression(X_train, Y_train, X_test=None, lambda_val=1e-3):
     """
     Perform ridge regression and returns the trained model, predictions, and metrics.
@@ -57,9 +57,6 @@ def ridge_regression(X_train, Y_train, X_test=None, lambda_val=1e-3):
         'Y_test_hat': Y_test_hat,
         'model': model,
     }
-
-
-
 
 # def ridge_regression(X_train, Y_train, X_test=None, lambda_val=1e-3, verbose=True):
 #     """
@@ -140,6 +137,9 @@ def ridge_regression(X_train, Y_train, X_test=None, lambda_val=1e-3):
 #     }
 
 def column_based_correlation(X,Y,verbose=True):
+    """
+    Calculate the correlation between each column of X and Y.
+    """
     #TODO: multidimensional Y 
     if verbose: print(datetime.now().strftime('%H:%M:%S'),'column_based_correlation')
     columns_of_X = X.shape[1]  # Number of columns in X
@@ -157,7 +157,9 @@ def column_based_correlation(X,Y,verbose=True):
     return(correlation_array[0])
 
 def co2i(X,Y, verbose=True):
-
+    """
+    Calculate the coefficient of determination (R^2) between each column of X and Y.
+    """
     # check if Y is a pd.series and make it dataframe
     if isinstance(Y, pd.Series):
         Y = pd.DataFrame(Y)
@@ -174,7 +176,7 @@ def co2i(X,Y, verbose=True):
 
     return I
 
-def rankrho(X, Y, nmax=5, regr=False, verbose=False):
+def rankrho(X, Y, nmax=5, regr=False, verbose=False): # interesting for td2c extensions
     """
     Perform mutual information ranking between two arrays.
 
@@ -231,8 +233,7 @@ def rankrho(X, Y, nmax=5, regr=False, verbose=False):
     to_return = reverse[:nmax]
     return to_return
 
-
-def mRMR(X, Y, nmax, verbose=False):
+def mRMR(X, Y, nmax, verbose=False): # interesting for td2c extensions
     """
     Max-Relevance Min-Redundancy (mRMR) feature selection method.
     
@@ -277,20 +278,20 @@ def mRMR(X, Y, nmax, verbose=False):
     
     return indices
 
-
-
-
 def ecdf(data, verbose=False):
+    """
+    This function calculates the empirical cumulative distribution function (ECDF) of a dataset.
+    """
     if verbose: print(datetime.now().strftime('%H:%M:%S'),'ecdf')
     def _ecdf(x):
         return percentileofscore(data, x) / 100
     return _ecdf
 
-
-
-
-
 def coeff(y, x1, x2=None, verbose=False):
+    """
+    This function calculates the coefficient of x1 in a linear regression model with y as the response variable.
+    If x2 is provided, the function calculates the coefficient of x1 in a multiple linear regression model with x2 as a predictor.
+    """
     if verbose: print(datetime.now().strftime('%H:%M:%S'),'coeff')
     if x2 is not None:
         X = np.column_stack((x1, x2))
@@ -303,13 +304,20 @@ def coeff(y, x1, x2=None, verbose=False):
 
     return model.coef_[0]  # return the coefficient of x1
 
-
-
 # High Order Correlation
 def HOC(x, y, i, j):
+    """
+    This function calculates the high order correlation between two variables x and y.
+    """
     return np.mean((x - np.mean(x))**i * (y - np.mean(y))**j) / (np.std(x)**i * np.std(y)**j)
 
 def stab(X, Y, lin=True, R=10):
+    """
+    This function calculates the stability of the relationship between X and Y.
+    This is useful because the relationship between X and Y can be unstable due to the presence of noise, and 
+    this can be a problem when using the relationship to infer causality.
+    """
+
     X = (X - np.min(X)) / (np.max(X) - np.min(X) + 1e-4)
     Y = (Y - np.min(Y)) / (np.max(Y) - np.min(Y) + 1e-4)
     
@@ -337,9 +345,10 @@ def stab(X, Y, lin=True, R=10):
     
     return np.sign(np.mean(np.std(Yhat, axis=0)) - np.mean(np.std(Xhat, axis=0)))
 
-
-
 def print_dag(dag, part="all"):
+    """
+    Print the nodes and edges of the DAG.  
+    """
     if part == "all":
         print("#"*20)
         for node, attr in dag.nodes(data=True):
@@ -354,7 +363,6 @@ def print_dag(dag, part="all"):
         print("#"*20)
         for edge_source, edge_dest in dag.edges():
             print(f"Edge {edge_source} -> {edge_dest}")
-
 
 def dag_to_formula(dag):
     import networkx as nx
@@ -391,7 +399,6 @@ def custom_layout(G, n_nodes, t_lag):
     pos = {node: (x * 10, y * 3) for node, (x, y) in pos.items()}
     return pos
 
-
 def show_DAG(G):
     import networkx as nx
     import matplotlib.pyplot as plt
@@ -401,7 +408,6 @@ def show_DAG(G):
     nx.draw(G, pos_custom, with_labels=True, node_size=1000, node_color="lightpink", font_size=10, arrowsize=10)
     plt.title("Time Series DAG with Custom Layout")
     plt.show()
-
 
 def epred(X, Y):
     """

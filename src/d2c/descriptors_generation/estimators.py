@@ -120,6 +120,8 @@ class MarkovBlanketEstimator:
 # MB estimation for td2c + ranking 
     def estimate_time_series_ranking(self, dataset, node):
         '''
+        This method estimates the Markov Blanket for a given node using feature ranking.
+        It is used in td2c to estimate the Markov Blanket of a node based on the most relevant features.
         '''
         print('Estimating MB for node', node)
         mb = np.array([])
@@ -201,13 +203,16 @@ class MarkovBlanketEstimator:
 cache = Cache(maxsize=1024)  # Define cache size
 
 def custom_hashkey(*args, **kwargs):
+    """
+    Custom hashkey function for caching based on the data and shape of the input arguments.
+    """
     return hashkey(*(
         (arg.data.tobytes(), arg.shape) if isinstance(arg, np.ndarray) else arg
         for arg in args
     ), **kwargs)
 
-
 @cached(cache, key=custom_hashkey)
+
 def mse(X, y, cv):
     """
     Calculates the mean squared error (MSE) based on the prediction of Y from X using the specified regression model.
@@ -361,6 +366,16 @@ class LOWESS(BaseEstimator, RegressorMixin):
         self.theta_ = None
 
     def wm(self, point, X):
+        """
+        Calculates the weight matrix for the given point and dataset X.
+
+        Parameters:
+        - point (numpy.ndarray): The point for which to calculate the weights.
+        - X (numpy.ndarray): The dataset for which to calculate the weights.
+
+        Returns:
+        - numpy.ndarray: The weight matrix.
+        """
         # Calculate the squared differences in a vectorized way
         # point is reshaped to (1, -1) for broadcasting to match the shape of X
         differences = X - point.reshape(1, -1)
@@ -376,13 +391,18 @@ class LOWESS(BaseEstimator, RegressorMixin):
         return weight_matrix
 
     def fit(self, X, y):
+        """
+        Fits the LOWESS model to the data.
+        """
         # Fit the model to the data
         self.X_ = np.append(X, np.ones(X.shape[0]).reshape(X.shape[0],1), axis=1)
         self.y_ = np.array(y).reshape(-1, 1)
         return self
 
     def predict(self, X):
-        # Predict using the fitted model
+        """
+        Predicts the target variable for the input data.   
+        """
 
         #allocate array of size X.shape[0]
         preds = np.empty(X.shape[0])
