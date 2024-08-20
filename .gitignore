@@ -68,3 +68,7 @@ notebooks/contributions/Real_data_validation/model.pkl
 
 # descriptors
 notebooks/contributions/td2c_extesions/descriptors
+
+# data
+notebooks/contributions/td2c_extesions/data
+
