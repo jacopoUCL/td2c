@@ -23,7 +23,6 @@ class BaseCausalInference:
             raise ValueError('n_jobs must be at least 1')
         self.ts_list = ts_list
         self.maxlags = maxlags
-        self.causal_dfs = {}
         self.ground_truth = ground_truth
         self.returns_proba = False #TODO: in subclasses
         self.n_jobs = n_jobs
@@ -32,6 +31,7 @@ class BaseCausalInference:
         self.causal_matrices = {}
         self.p_value_matrices = {}
         self.lag_matrices = {}
+        self.causal_dfs = {}
         
     def standardize(self, single_ts):
         """
@@ -42,7 +42,7 @@ class BaseCausalInference:
         single_ts /= single_ts.std(axis=0)
         return single_ts
 
-    def infer(self, single_ts,**kwargs):
+    def infer(self, single_ts,**kwargs): # **kwargs is used to pass the argument ts_index to the method infer
         """
         Infer causal relationships from a single time series.
         """

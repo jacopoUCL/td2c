@@ -65,3 +65,6 @@ notebooks/paper_td2c/
 
 # model.plk
 notebooks/contributions/Real_data_validation/model.pkl
+
+# descriptors
+notebooks/contributions/td2c_extesions/descriptors

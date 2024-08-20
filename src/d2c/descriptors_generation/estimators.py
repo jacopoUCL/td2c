@@ -19,7 +19,7 @@ import time
 ################################################################################################################################### 
 
 class MarkovBlanketEstimator:
-    def __init__(self, size=5, n_variables=5, maxlags=5, verbose=True):
+    def __init__(self, size=5, n_variables=5, maxlags=5, verbose=True, top_vars=3):
         """
         Initializes the Markov Blanket Estimator with specified parameters.
         
@@ -33,6 +33,7 @@ class MarkovBlanketEstimator:
         self.size = size
         self.n_variables = n_variables
         self.maxlags = maxlags
+        self.top_vars = top_vars
 
     def column_based_correlation(self, X, Y):
         """
@@ -94,10 +95,12 @@ class MarkovBlanketEstimator:
         # Exclude the target node from the dataset for ranking
         X = dataset[:, candidates_positions]
         
-        order = self.rank_features(X, Y, regr=False)
+        order = self.rank_features(X, Y, regr=False) # rank features based on correlation, this is not done in 
+                                                     # estimte_time_series, used in td2c
         sorted_ind = candidates_positions[order]
         
         return sorted_ind[:self.size]
+    
 # MB estimation for td2c
     def estimate_time_series(self, dataset, node):
         '''
@@ -120,8 +123,9 @@ class MarkovBlanketEstimator:
 # MB estimation for td2c + ranking 
     def estimate_time_series_ranking(self, dataset, node):
         '''
-        This method estimates the Markov Blanket for a given node using feature ranking.
-        It is used in td2c to estimate the Markov Blanket of a node based on the most relevant features.
+        This method estimates the Markov Blanket for a given node doing the following steps:
+        - select the first passed and future instant of the node for each candidate variable, as in estimate_time_series
+        - performs a feature ranking as in estimate, giving the possibility to keep 1, 2 or 3 most important variables
         '''
         print('Estimating MB for node', node)
         mb = np.array([])
@@ -136,14 +140,16 @@ class MarkovBlanketEstimator:
         n = dataset.shape[1]
         candidates_positions = np.array(list(set(range(n)) - set(mb) - {node}))
         Y = dataset[:, node]
-        
+
         # Exclude the target node from the dataset for ranking
         X = dataset[:, candidates_positions]
-        
+
         order = self.rank_features(X, Y, regr=False)
         sorted_ind = candidates_positions[order]
-        
-        return np.append(mb, sorted_ind[:self.size])
+        # get the top 3 most important variables
+        top_vars = sorted_ind[:top_vars]
+        return np.append(mb, top_vars)
+    
 
 # MB estimation for td2c with extended ancestors (X_t-i, for i > 1)
     def estimate_time_series_extended(self, dataset, node):

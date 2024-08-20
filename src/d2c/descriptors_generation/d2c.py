@@ -51,8 +51,9 @@ class D2C:
                  verbose=False, 
                  cmi = 'cmiknn_3',
                  mb_estimator = 'original',
-                 seed=42, 
-                 n_jobs=1) -> None:
+                 seed= 42, 
+                 n_jobs=1,
+                 top_vars = 3) -> None:
         
         self.DAGs = dags
         self.observations = observations
@@ -66,6 +67,7 @@ class D2C:
         self.seed = seed
         self.cmi = cmi
         self.normalize = normalize
+        self.top_vars = top_vars
 
         self.x_y = None # Placeholder for computed descriptors, list of dictionaries
         self.test_couples = []  # List of couples for which descriptors have been computed
@@ -77,7 +79,6 @@ class D2C:
 
         self.quantiles = quantiles
         self.full = full
-
 
         np.random.seed(seed)
 
@@ -166,10 +167,10 @@ class D2C:
             # dag_idx = dag.graph['index']
 
             for parent, child in subset_causal_links:
-                x_y_couples.append(self.compute_descriptors_for_couple(dag_idx, parent, child, label=1)) # causal
-                x_y_couples.append(self.compute_descriptors_for_couple(dag_idx, child, parent, label=0)) # noncausal, not time ordered (yet informative)
+                x_y_couples.append(self.compute_descriptors_for_couple(self, dag_idx, parent, child, label=1)) # causal
+                x_y_couples.append(self.compute_descriptors_for_couple(self, dag_idx, child, parent, label=0)) # noncausal, not time ordered (yet informative)
             for node_a, node_b in subset_non_causal_links:
-                x_y_couples.append(self.compute_descriptors_for_couple(dag_idx, node_a, node_b, label=0)) # noncausal, time ordered
+                x_y_couples.append(self.compute_descriptors_for_couple(self, dag_idx, node_a, node_b, label=0)) # noncausal, time ordered
 
             self.test_couples.extend(subset_causal_links)
             self.test_couples.extend(subset_non_causal_links)
@@ -263,7 +264,7 @@ class D2C:
         for i, q in enumerate(values):
             dictionary[f'{name}_{i}'] = q
 
-    def compute_descriptors_for_couple(self, dag_idx, ca, ef, label):
+    def compute_descriptors_for_couple(self, dag_idx, ca, ef, label, top_vars): # , sp?
         """
         Compute descriptors for a given couple of nodes in a directed acyclic graph (DAG).
 
@@ -289,25 +290,30 @@ class D2C:
         if self.mb_estimator=='original':
             MBca = self.markov_blanket_estimator.estimate(observations, node=ca)
             MBef = self.markov_blanket_estimator.estimate(observations, node=ef)
-            Mbsp = self.markov_blanket_estimator.estimate(observations, node=sp) 
+#           Mbsp = self.markov_blanket_estimator.estimate(observations, node=sp) 
         elif self.mb_estimator=='ts':
             MBca = self.markov_blanket_estimator.estimate_time_series(observations, node=ca)
             MBef = self.markov_blanket_estimator.estimate_time_series(observations, node=ef)
-            Mbsp = self.markov_blanket_estimator.estimate_time_series(observations, node=sp)
+#           Mbsp = self.markov_blanket_estimator.estimate_time_series(observations, node=sp)
+        elif self.mb_estimator=='ts_rank':
+            MBca = self.markov_blanket_estimator.estimate_time_series_ranking(observations, node=ca, top_vars=top_vars)
+            MBef = self.markov_blanket_estimator.estimate_time_series_ranking(observations, node=ef, top_vars=top_vars)
+#           Mbsp = self.markov_blanket_estimator.estimate_time_series(observations, node=sp)
             
         common_causes_eff = list(set(MBca).intersection(MBef))
         mbca_mbef_couples = [(i, j) for i in range(len(MBca)) for j in range(len(MBef))]
         mbca_mbca_couples = [(i, j) for i in range(len(MBca)) for j in range(len(MBca)) if i != j]
         mbef_mbef_couples = [(i, j) for i in range(len(MBef)) for j in range(len(MBef)) if i != j]
 
-        common_causes_sp = list(set(MBca).intersection(MBsp))
-        mbca_mbsp_couples = [(i, j) for i in range(len(MBca)) for j in range(len(MBsp))]
+#       common_causes_sp = list(set(MBca).intersection(MBsp))
+#       mbca_mbsp_couples = [(i, j) for i in range(len(MBca)) for j in range(len(MBsp))]
         # mbca_mbca_couples = [(i, j) for i in range(len(MBca)) for j in range(len(MBca)) if i != j]
         # mbsp_mbsp_couples = [(i, j) for i in range(len(MBsp)) for j in range(len(MBsp)) if i != j]
 
         
-        # e, c = observations[:, ef], observations[:, ca] #aliases 'e' and 'c' for brevityù
-        e,c,s  = ef,ca,sp
+        # e, c = observations[:, ef], observations[:, ca] #aliases 'e' and 'c' for brevity
+        e,c  = ef,ca
+        # s = sp
         if 'cmiknn' in self.cmi:
             CMI = self.mutual_information_estimator.estimate_knn_cmi # alias for mutual information estimator function, for brevity
         elif self.cmi == 'original':
@@ -317,7 +323,7 @@ class D2C:
         values['graph_id'] = dag_idx
         values['edge_source'] = ca
         values['edge_dest'] = ef
-        values['edge_spouse'] = sp
+#       values['edge_spouse'] = sp
         values['is_causal'] = label
 
         # b: ef = b * (ca + mbef)
@@ -327,6 +333,7 @@ class D2C:
         values['coeff_eff'] = coeff(observations[:, c], observations[:, e], observations[:, MBca])
 
         # b: add spouses?
+        
 
         values['HOC_3_1'] = HOC(observations[:, c], observations[:, e], 3, 1)
         values['HOC_1_2'] = HOC(observations[:, c], observations[:, e], 1, 2)
@@ -365,9 +372,9 @@ class D2C:
 
         # I(msp; mca | effect) for (mca,msp) in mbca_mbsp_couples ??
         # mca_msp_eff = [0] if not len(mbca_mbsp_couples) else [CMI(observations[:,i], observations[:,j], e) for i, j in mbca_mbsp_couples]
-        mca_msp_eff = [0] if not len(mbca_mbsp_couples) else [CMI(observations, i,j, e) for i, j in mbca_mbsp_couples]
-        if self.quantiles: self.update_dictionary_quantiles(values, 'mca_msp_eff', np.quantile(mca_msp_eff, pq))
-        else: self.update_dictionary_actual_values(values, 'mca_msp_eff', mca_msp_eff)
+#       mca_msp_eff = [0] if not len(mbca_mbsp_couples) else [CMI(observations, i,j, e) for i, j in mbca_mbsp_couples]
+#       if self.quantiles: self.update_dictionary_quantiles(values, 'mca_msp_eff', np.quantile(mca_msp_eff, pq))
+#       else: self.update_dictionary_actual_values(values, 'mca_msp_eff', mca_msp_eff)
 
 
         if self.full:
@@ -380,7 +387,7 @@ class D2C:
 
             # I(cause; effect | common_causes)
             # values['com_cau'] = CMI(e, c, observations[:, common_causes])
-            values['com_cau'] = CMI(observations, e, c, common_causes)
+            values['com_cau'] = CMI(observations, e, c, common_causes_eff)
 
             # I(cause; effect)
             # values['cau_eff'] = CMI(e, c)
@@ -430,9 +437,9 @@ class D2C:
 
             # I(mbca ; mbsp| effect) for (mbca,mbsp) in mbca_mbsp_couples ??
             # mbca_mbsp_eff = [0] if not len(mbca_mbsp_couples) else [CMI(observations[:,i], observations[:,j], e) for i, j in mbca_mbsp_couples]
-            mbca_mbsp_eff = [0] if not len(mbca_mbsp_couples) else [CMI(observations, i,j, e) for i, j in mbca_mbsp_couples]
-            if self.quantiles: self.update_dictionary_quantiles(values, 'mbca_mbsp_eff', np.quantile(mbca_mbsp_eff, pq))
-            else: self.update_dictionary_actual_values(values, 'mbca_mbsp_eff', mbca_mbsp_eff)
+#           mbca_mbsp_eff = [0] if not len(mbca_mbsp_couples) else [CMI(observations, i,j, e) for i, j in mbca_mbsp_couples]
+#           if self.quantiles: self.update_dictionary_quantiles(values, 'mbca_mbsp_eff', np.quantile(mbca_mbsp_eff, pq))
+#           else: self.update_dictionary_actual_values(values, 'mbca_mbsp_eff', mbca_mbsp_eff)
 
             values['n_samples'] = observations.shape[0]
             values['n_features'] = observations.shape[1]

@@ -32,7 +32,14 @@ class D2CWrapper(BaseCausalInference):
 # It gives back the edges only, in the format: edge_source, edge_dest, probability, is_causal.
 # Could add a function to return a DAG from the edges.
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs): # *args and **kwargs are used to pass to the init method the arguments that have been 
+        # specified in the BaseCausalInference class. This is a way to avoid repeating the same arguments in the subclasses.
+        # *args passes: ts_list, maxlags, ground_truth, n_jobs, suffix
+        # **kwargs passes: n_variables, model, full, quantiles, cmi, mb_estimator, normalize, filename.
+        # kwargs stays for keyword arguments, wile args stays for positional arguments. The difference is that kwargs 
+        # is a dictionary, while args is a tuple.
+        # in this method the *kwargs.pop() is used to get the value of the keyword argument, if it is not specified it will
+        # return the default value.
         """
         Initialize the D2C class.
 
@@ -42,7 +49,6 @@ class D2CWrapper(BaseCausalInference):
 
         """
         self.n_variables = kwargs.pop('n_variables', 6)
-        
         self.full = kwargs.pop('full', True)
         self.quantiles = kwargs.pop('quantiles', True)
         self.model = kwargs.pop('model', None)
