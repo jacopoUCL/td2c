@@ -72,7 +72,7 @@ class D2C:
         self.x_y = None # Placeholder for computed descriptors, list of dictionaries
         self.test_couples = []  # List of couples for which descriptors have been computed
 
-        self.markov_blanket_estimator = MarkovBlanketEstimator(size=min(MB_size, n_variables - 2), n_variables = n_variables, maxlags=maxlags)
+        self.markov_blanket_estimator = MarkovBlanketEstimator(size=min(MB_size, n_variables - 2), n_variables = n_variables, maxlags=maxlags, top_vars = self.top_vars)
 
         self.mb_estimator = mb_estimator
         self.mutual_information_estimator = MutualInformationEstimator(proxy=mutual_information_proxy, proxy_params=proxy_params, k=int(self.cmi.split('_')[-1]) if self.cmi.startswith('cmiknn') else None)
@@ -167,10 +167,10 @@ class D2C:
             # dag_idx = dag.graph['index']
 
             for parent, child in subset_causal_links:
-                x_y_couples.append(self.compute_descriptors_for_couple(self, dag_idx, parent, child, label=1)) # causal
-                x_y_couples.append(self.compute_descriptors_for_couple(self, dag_idx, child, parent, label=0)) # noncausal, not time ordered (yet informative)
+                x_y_couples.append(self.compute_descriptors_for_couple(dag_idx, parent, child, label=1)) # causal
+                x_y_couples.append(self.compute_descriptors_for_couple(dag_idx, child, parent, label=0)) # noncausal, not time ordered (yet informative)
             for node_a, node_b in subset_non_causal_links:
-                x_y_couples.append(self.compute_descriptors_for_couple(self, dag_idx, node_a, node_b, label=0)) # noncausal, time ordered
+                x_y_couples.append(self.compute_descriptors_for_couple(dag_idx, node_a, node_b, label=0)) # noncausal, time ordered
 
             self.test_couples.extend(subset_causal_links)
             self.test_couples.extend(subset_non_causal_links)
@@ -264,7 +264,7 @@ class D2C:
         for i, q in enumerate(values):
             dictionary[f'{name}_{i}'] = q
 
-    def compute_descriptors_for_couple(self, dag_idx, ca, ef, label, top_vars): # , sp?
+    def compute_descriptors_for_couple(self, dag_idx, ca, ef, label): # , sp?
         """
         Compute descriptors for a given couple of nodes in a directed acyclic graph (DAG).
 
@@ -296,8 +296,8 @@ class D2C:
             MBef = self.markov_blanket_estimator.estimate_time_series(observations, node=ef)
 #           Mbsp = self.markov_blanket_estimator.estimate_time_series(observations, node=sp)
         elif self.mb_estimator=='ts_rank':
-            MBca = self.markov_blanket_estimator.estimate_time_series_ranking(observations, node=ca, top_vars=top_vars)
-            MBef = self.markov_blanket_estimator.estimate_time_series_ranking(observations, node=ef, top_vars=top_vars)
+            MBca = self.markov_blanket_estimator.estimate_time_series_ranking(observations, node=ca)
+            MBef = self.markov_blanket_estimator.estimate_time_series_ranking(observations, node=ef)
 #           Mbsp = self.markov_blanket_estimator.estimate_time_series(observations, node=sp)
             
         common_causes_eff = list(set(MBca).intersection(MBef))

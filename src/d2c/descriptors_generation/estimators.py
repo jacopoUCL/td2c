@@ -147,8 +147,8 @@ class MarkovBlanketEstimator:
         order = self.rank_features(X, Y, regr=False)
         sorted_ind = candidates_positions[order]
         # get the top 3 most important variables
-        top_vars = sorted_ind[:top_vars]
-        return np.append(mb, top_vars)
+        top_variables = sorted_ind[:self.top_vars]
+        return np.append(mb, top_variables)
     
 
 # MB estimation for td2c with extended ancestors (X_t-i, for i > 1)

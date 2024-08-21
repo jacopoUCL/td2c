@@ -4,7 +4,9 @@ Computational cost resuction
 Linear processes validation
 
 td2c extensions
-    Set up work by listing some possible modifications of MI computation and MB estimation
+    Set up the notebook, missing only classification and plots for comparisons.
+    missing the TD2C in the pas method.
+    missing how to handle when cmiknn doesn't have a number like cmiknn_3 in the nnotebook's declaration of the method
 
 Real data validation
     tested the datasets from Hybrid... paper, bad results even lowering the treshold for classification
