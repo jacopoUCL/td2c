@@ -20,6 +20,5 @@ setup(
         'causalnex',
         'seaborn',
         'dcor',
-        'knncmi'
     ],
 )
