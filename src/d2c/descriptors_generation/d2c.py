@@ -147,7 +147,7 @@ class D2C:
 
         all_possible_links = {(i, j) for i in range(n_variables, n_variables + n_variables * maxlags) for j in range(n_variables) if i != j}
 
-        causal_links = set([(int(parent), int(child)) for parent, child in dag.edges]).intersection(all_possible_links)
+        causal_links = list(set([(int(parent), int(child)) for parent, child in dag.edges]).intersection(all_possible_links))
         non_causal_links = list(all_possible_links - set(causal_links))
 
         if num_samples == -1:
