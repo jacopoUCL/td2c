@@ -75,10 +75,11 @@ class MarkovBlanketEstimator:
         
         return ranked_indices
 
-# MB estimation for d2c
+# MB estimation for d2c # HOW MANY VARIABLES DOES D2C KEEP?
     def estimate(self, dataset, node):
             """
             Estimates the Markov Blanket for a given node using feature ranking.
+            If the target node is Yt, the Markov Blanket consists of ...|X_t-2,Y_t-2,Z_t-2|X_t-1,Y_t-1,Z_t-1|X_t,Y_t,Z_t|X_t+1,Y_t+1,Z_t+1|X_t+2,Y_t+2,Z_t+2|...
             
             Parameters:
             - dataset (numpy.ndarray): The dataset containing all variables.
@@ -104,6 +105,7 @@ class MarkovBlanketEstimator:
     def estimate_no_cont(self, dataset, node):
         """
         It's the same as estimate, but it excludes the conntemporaneous variables from the candidates.
+        If the target node is Yt, the Markov Blanket consists of ...|X_t-2,Y_t-2,Z_t-2|X_t-1,Y_t-1,Z_t-1|Y_t|X_t+1,Y_t+1,Z_t+1|X_t+2,Y_t+2,Z_t+2|...
         """
         n = dataset.shape[1]
         nmb = np.array([])
@@ -130,6 +132,7 @@ class MarkovBlanketEstimator:
         This is how the dataset is structured:
         |X1,X2,X3|X1_t-1,X2_t-1,X3_t-1|X1_t-2,X2_t-2,X3_t-2|
         in fact, it's just (node + n_variables) and (node - n_variables) when they exist!
+        If the target node is Yt, the Markov Blanket consists of |Y_t-1|Y_t|Y_t+1|
         '''
         # print('Estimating MB for node', node)
         mb = np.array([])
@@ -141,41 +144,15 @@ class MarkovBlanketEstimator:
         # make mb type int
         return mb.astype(int)
     
-# MB estimation for td2c with no contemporaneous variables
+# MB estimation for td2c with no contemporaneous variables # YET TO BE IMPLEMENTED
     def estimate_time_series_no_cont(self, dataset, node):
         '''
-        The idea is to leverage the fact that we are in a temporal context and we know that x_t-1 is in the markov blanked of x_t. As well as x_t+1. 
-        Based on the position in the observations dataset; and the number of dimensions and maxlags, we can reconstruct the time series and estimate the markov blanket.
-        This is how the dataset is structured:
-        |X1,X2,X3|X1_t-1,X2_t-1,X3_t-1|X1_t-2,X2_t-2,X3_t-2|
-        in fact, it's just (node + n_variables) and (node - n_variables) when they exist!
+        It does the same as estimate_time_series, but it excludes the contemporaneous variables from the candidates.
         '''
-        # print('Estimating MB for node', node)
-        mb = np.array([])
-        if node + self.n_variables < dataset.shape[1]:
-            mb = np.append(mb, node + self.n_variables)
-        if node - self.n_variables >= 0:
-            mb = np.append(mb, node - self.n_variables)
-
-        mb = mb.astype(int)
-
-        # compute contemporaneous variables to remove 
-        n = dataset.shape[1]
-        nmb = np.array([])
-        group = node // self.n_variables
-        for i in range(self.n_variables):
-            nmb = np.append(nmb, i+group*self.n_variables)
-        
-        candidates_positions = np.array(list(set(range(n)) - set(nmb)))
-        Y = dataset[:, node]
-
-        # Exclude the target node and the TD2C MB from the dataset for ranking
-        X = dataset[:, candidates_positions]
-
-        order = self.rank_features(X, Y, regr=False)
-        sorted_ind = candidates_positions[order]
-
-        return sorted_ind[:self.size]
+        # probably we have to change somethig at the level of d2c.compute_descriptors_for_couple(), 
+        # because this method already excludes the contemporaneous variables, since
+        # it considers only the lagged values +- 1 in the MB. 
+        # The same changement could be done in all the other methods if it's not already done in d2c.compute_descriptors_for_couple()
     
 # MB estimation for td2c + ranking 
     def estimate_time_series_ranking(self, dataset, node):
@@ -183,6 +160,9 @@ class MarkovBlanketEstimator:
         This method estimates the Markov Blanket for a given node doing the following steps:
         - select the first passed and future instant of the node for each candidate variable, as in estimate_time_series
         - performs a feature ranking as in estimate, giving the possibility to keep 1, 2 or 3 most important variables
+        If the target node is Yt, the Markov Blanket consists of top 1, 2 or 3 btw ...|X_t-2,Y_t-2,Z_t-2|X_t-1,Y_t-1,Z_t-1|X_t,Y_t,Z_t|X_t+1,Y_t+1,Z_t+1|X_t+2,Y_t+2,Z_t+2|...
+        - performs a feature ranking as in estimate, giving the possibility to keep 1, 2 or 3 most important variables
+        
         '''
         # print('Estimating MB for node', node)
         mb = np.array([])
@@ -212,6 +192,8 @@ class MarkovBlanketEstimator:
         '''
         This method estimates the Markov Blanket for a given node doing the following steps:
         - select the first passed and future instant of the node for each candidate variable, as in estimate_time_series
+        - performs a feature ranking as in estimate, giving the possibility to keep 1, 2 or 3 most important variables
+        If the target node is Yt, the Markov Blanket consists of top 1, 2 or 3 btw ...|X_t-2,Y_t-2,Z_t-2|X_t-1,Y_t-1,Z_t-1|Y_t|X_t+1,Y_t+1,Z_t+1|X_t+2,Y_t+2,Z_t+2|...
         - performs a feature ranking as in estimate, giving the possibility to keep 1, 2 or 3 most important variables
         '''
         # print('Estimating MB for node', node)
@@ -248,86 +230,89 @@ class MarkovBlanketEstimator:
         '''
         This method estimates the Markov Blanket for a given node doing the following steps:
         - select the first passed and future instant of the node for each candidate variable, as in estimate_time_series
+        - removes the nodes from the same variables of the target node
+        If the target node is Yt, the Markov Blanket consists of top 1, 2 or 3 btw ...|X_t-2,Z_t-2|X_t-1,Y_t-1,Z_t-1|X_t,Y_t,Z_t|X_t+1,Y_t+1,Z_t+1|X_t+2,Z_t+2|...
         - performs a feature ranking as in estimate, giving the possibility to keep 1, 2 or 3 most important variables
         '''
-        # print('Estimating MB for node', node)
+        # select nodes after and before the target node
         mb = np.array([])
         if node + self.n_variables < dataset.shape[1]:
             mb = np.append(mb, node + self.n_variables)
         if node - self.n_variables >= 0:
             mb = np.append(mb, node - self.n_variables)
-
         mb = mb.astype(int)
 
+        # select passed and future instants of the node # TO VALIDATE AGAIN
         nmb = np.array([])
-        # extended markov blanket
         for i in range(1, self.maxlags+1):
             if node + i*self.n_variables < dataset.shape[1]:
-                mb = np.append(nmb, node + i*self.n_variables)
+                nmb = np.append(nmb, node + i*self.n_variables)
             if node - i*self.n_variables >= 0:
-                mb = np.append(nmb, node - i*self.n_variables)
-        
+                nmb = np.append(nmb, node - i*self.n_variables)
         nmb = nmb.astype(int)
 
-        # rank the features
+        # reduce the number of candidates   
         n = dataset.shape[1] # here we declare n as the number of columns in the dataset
         candidates_positions = np.array(list(set(range(n)) - set(nmb) - {node})) # here we are excluding the target node and the markov blanket from the candidates
-        Y = dataset[:, node] # here we are using the target node as Y
 
+        # rank the features
+        Y = dataset[:, node] # here we are using the target node as Y
         # Exclude the target node and the TD2C MB from the dataset for ranking
         X = dataset[:, candidates_positions] # here we are using the candidates as X
-
         order = self.rank_features(X, Y, regr=False) # rank features based on correlation between X and Y
         sorted_ind = candidates_positions[order] # get the sorted indices of the candidates
         # get the top top_vars most important variables
         top_variables = sorted_ind[:self.top_vars] # get the top_vars most important variables
+
         return np.append(mb, top_variables) # return the markov blanket and the top_vars most important variables
     
-# MB estimation for td2c + ranking_3 # YET TO BE IMPLEMENTED
+# MB estimation for td2c + ranking_3
     def estimate_time_series_ranking_3(self, dataset, node):
         '''
         This method estimates the Markov Blanket for a given node doing the following steps:
         - select the first passed and future instant of the node for each candidate variable, as in estimate_time_series
-        - performs a feature ranking as in estimate, giving the possibility to keep 1, 2 or 3 most important variables
+        - removes the nodes from the same variables of each node exept from nodes right before and after
+         If the target node is Yt, the Markov Blanket consists of top 1, 2 or 3 btw |X_t-1,Y_t-1,Z_t-1|X_t,Y_t,Z_t|X_t+1,Y_t+1,Z_t+1|
+        - performs a feature ranking btw the candidates as in estimate, giving the possibility to keep 1, 2 or 3 most important variables
         '''
-        # print('Estimating MB for node', node)
+        # select nodes after and before the target node
         mb = np.array([])
         if node + self.n_variables < dataset.shape[1]:
             mb = np.append(mb, node + self.n_variables)
         if node - self.n_variables >= 0:
             mb = np.append(mb, node - self.n_variables)
-
         mb = mb.astype(int)
 
+        # select passed and future instants for each node
         nmb = np.array([])
-        # extended markov blanket
         for i in range(1, self.maxlags+1):
             if node + i*self.n_variables < dataset.shape[1]:
-                mb = np.append(nmb, node + i*self.n_variables)
+                nmb = np.append(nmb, range(node + (i-1)*self.n_variables, node + i*self.n_variables))
             if node - i*self.n_variables >= 0:
-                mb = np.append(nmb, node - i*self.n_variables)
-        
+                nmb = np.append(nmb, range(node - i*self.n_variables, node - (i-1)*self.n_variables))
         nmb = nmb.astype(int)
 
-        # rank the features
+        # reduce the number of candidates   
         n = dataset.shape[1] # here we declare n as the number of columns in the dataset
-        candidates_positions = np.array(list(set(range(n)) - set(nmb) - {node})) # here we are excluding the target node and the markov blanket from the candidates
-        Y = dataset[:, node] # here we are using the target node as Y
+        candidates_positions = np.array(list(set(range(n)) - set(nmb) - {node} - set(mb))) # here we are excluding the target node and the markov blanket from the candidates)
 
+        # rank the features
+        Y = dataset[:, node] # here we are using the target node as Y
         # Exclude the target node and the TD2C MB from the dataset for ranking
         X = dataset[:, candidates_positions] # here we are using the candidates as X
-
         order = self.rank_features(X, Y, regr=False) # rank features based on correlation between X and Y
         sorted_ind = candidates_positions[order] # get the sorted indices of the candidates
         # get the top top_vars most important variables
         top_variables = sorted_ind[:self.top_vars] # get the top_vars most important variables
-        return np.append(mb, top_variables) # return the markov blanket and the top_vars most important variables
+
+        return np.append(mb, top_variables) # return the markov blanket and the top_vars most important variable
 
 # MB estimation for td2c with extended ancestors (X_t-i and X_t+i, for i > 1)
     def estimate_time_series_extended(self, dataset, node):
         '''
         This method estimates the Markov Blanket for a given node as in estimate_time_series, but it also includes the ancestors 
         and the of nephews of the node.
+        If the target node is Yt, the Markov Blanket consists of ...|Y_t-2|Y_t-1|Y_t|Y_t+1|Y_t+2|...
         '''
         # print('Estimating MB for node', node)
         mb = np.array([])
