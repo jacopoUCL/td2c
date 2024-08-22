@@ -76,4 +76,19 @@ notebooks/contributions/td2c_extesions/data
 notebooks/contributions/td2c_extesions/results/journals
 
 # real data csvs
-notebooks/contributions/Real_data_validation/*.csv
+notebooks/contributions/Real_data_validation/data/Antivirus_activity/*.csv
+notebooks/contributions/Real_data_validation/data/Antivirus_activity/results/*.csv
+notebooks/contributions/Real_data_validation/data/Web_activity/*.csv
+notebooks/contributions/Real_data_validation/data/Web_activity/results/*.csv
+notebooks/contributions/Real_data_validation/data/Dairy_markets/*.csv
+notebooks/contributions/Real_data_validation/data/Dairy_markets/results/*.csv
+notebooks/contributions/Real_data_validation/data/monitoring/*.csv
+notebooks/contributions/Real_data_validation/data/monitoring/results/*.csv
+notebooks/contributions/Real_data_validation/data/monitoring/returns/storm_fork/*.csv
+notebooks/contributions/Real_data_validation/data/temperature/*.csv
+notebooks/contributions/Real_data_validation/data/temperature/results/*.csv
+notebooks/contributions/Real_data_validation/data/veilleux/*.csv
+notebooks/contributions/Real_data_validation/data/veilleux/results/*.csv
+
+
+
