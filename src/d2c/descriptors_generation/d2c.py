@@ -290,27 +290,30 @@ class D2C:
         if self.mb_estimator=='original':
             MBca = self.markov_blanket_estimator.estimate(observations, node=ca)
             MBef = self.markov_blanket_estimator.estimate(observations, node=ef)
-#           Mbsp = self.markov_blanket_estimator.estimate(observations, node=sp) 
+        elif self.mb_estimator=='no_cont':
+            MBca = self.markov_blanket_estimator.estimate_no_cont(observations, node=ca)
+            MBef = self.markov_blanket_estimator.estimate_no_cont(observations, node=ef)
         elif self.mb_estimator=='ts':
             MBca = self.markov_blanket_estimator.estimate_time_series(observations, node=ca)
             MBef = self.markov_blanket_estimator.estimate_time_series(observations, node=ef)
-#           Mbsp = self.markov_blanket_estimator.estimate_time_series(observations, node=sp)
+        # elif self.mb_estimator=='ts_no_cont': NO FUNCTION YET
+        #     MBca = self.markov_blanket_estimator.estimate_time_series_no_cont(observations, node=ca)
+        #     MBef = self.markov_blanket_estimator.estimate_time_series_no_cont(observations, node=ef)
         elif self.mb_estimator=='ts_rank':
             MBca = self.markov_blanket_estimator.estimate_time_series_ranking(observations, node=ca)
             MBef = self.markov_blanket_estimator.estimate_time_series_ranking(observations, node=ef)
-#           Mbsp = self.markov_blanket_estimator.estimate_time_series(observations, node=sp)
+        elif self.mb_estimator=='ts_rank_no_cont':
+            MBca = self.markov_blanket_estimator.estimate_time_series_ranking_no_cont(observations, node=ca)
+            MBef = self.markov_blanket_estimator.estimate_time_series_ranking_no_cont(observations, node=ef)
         elif self.mb_estimator=='ts_rank_2':
             MBca = self.markov_blanket_estimator.estimate_time_series_ranking_2(observations, node=ca)
             MBef = self.markov_blanket_estimator.estimate_time_series_ranking_2(observations, node=ef)
-#           Mbsp = self.markov_blanket_estimator.estimate_time_series(observations, node=sp)
         elif self.mb_estimator=='ts_rank_3':
             MBca = self.markov_blanket_estimator.estimate_time_series_ranking_3(observations, node=ca)
             MBef = self.markov_blanket_estimator.estimate_time_series_ranking_3(observations, node=ef)
-#           Mbsp = self.markov_blanket_estimator.estimate_time_series(observations, node=sp)
         elif self.mb_estimator=='ts_past':
             MBca = self.markov_blanket_estimator.estimate_time_series_extended(observations, node=ca)
             MBef = self.markov_blanket_estimator.estimate_time_series_extended(observations, node=ef)   
-#           Mbsp = self.markov_blanket_estimator.estimate_time_series(observations, node=sp)
             
         common_causes_eff = list(set(MBca).intersection(MBef))
         mbca_mbef_couples = [(i, j) for i in range(len(MBca)) for j in range(len(MBef))]
