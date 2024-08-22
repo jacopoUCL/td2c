@@ -37,13 +37,13 @@ ENV/
 *.tmp
 *.log
 *.cache
-*.csv
+# *.csv
 *.json
 *.png
 *.jpg
 *.jpeg
 *.gif
-*.pdf
+# *.pdf
 *.xlsx
 *.xls
 *.db
@@ -75,3 +75,5 @@ notebooks/contributions/td2c_extesions/data
 # results
 notebooks/contributions/td2c_extesions/results/journals
 
+# real data csvs
+notebooks/contributions/Real_data_validation/*.csv
