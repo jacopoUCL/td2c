@@ -151,7 +151,7 @@ class MarkovBlanketEstimator:
         return np.append(mb, top_variables) # return the markov blanket and the top_vars most important variables
     
 # MB estimation for td2c + ranking_2
-    def estimate_time_series_ranking(self, dataset, node):
+    def estimate_time_series_ranking_2(self, dataset, node):
         '''
         This method estimates the Markov Blanket for a given node doing the following steps:
         - select the first passed and future instant of the node for each candidate variable, as in estimate_time_series
@@ -181,7 +181,7 @@ class MarkovBlanketEstimator:
         return np.append(mb, top_variables) # return the markov blanket and the top_vars most important variables
     
 # MB estimation for td2c + ranking_3
-    def estimate_time_series_ranking(self, dataset, node):
+    def estimate_time_series_ranking_3(self, dataset, node):
         '''
         This method estimates the Markov Blanket for a given node doing the following steps:
         - select the first passed and future instant of the node for each candidate variable, as in estimate_time_series
