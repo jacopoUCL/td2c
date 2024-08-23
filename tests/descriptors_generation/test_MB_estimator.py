@@ -39,3 +39,13 @@ def test_estimate_markov_blanket_sizes(size, expected):
     markov_blanket = estimator.estimate(dataset, node)
     assert len(markov_blanket) == expected
     assert node not in markov_blanket
+
+# tentativo di test
+def test_estimate_markov_blanket_ranking():
+    estimator = MarkovBlanketEstimator(size=3, verbose=False)
+    dataset = np.random.rand(100, 5)  # Random dataset
+    node = 0
+    markov_blanket = estimator.estimate_time_series_ranking(dataset, node)
+    assert len(markov_blanket) == 3
+    assert node not in markov_blanket  # Ensure the node itself is not in its Markov Blanket
+    assert np.array_equal(markov_blanket, np.array([1, 2, 3]))  # Assuming correlation ranking
