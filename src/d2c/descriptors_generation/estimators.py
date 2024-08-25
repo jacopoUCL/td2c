@@ -295,7 +295,7 @@ class MarkovBlanketEstimator:
 
         return np.append(mb, top_variables) # return the markov blanket and the top_vars most important variable
 
-# Mb estimation fro td2c + ranking_4
+# Mb estimation for td2c + ranking_4
     def estimate_time_series_ranking_4(self, dataset, node):
         '''
         This method estimates the Markov Blanket for a given node doing the following steps:
@@ -340,7 +340,7 @@ class MarkovBlanketEstimator:
         mb = np.append(mb, top_variables_2) # return the markov blanket and the top_vars most important variables
         return mb.astype(int)
 
-# Mb estimation fro td2c + ranking_5
+# Mb estimation for td2c + ranking_5
     def estimate_time_series_ranking_5(self, dataset, node):
         '''
         This method estimates the Markov Blanket for a given node doing the following steps:
@@ -400,7 +400,7 @@ class MarkovBlanketEstimator:
         mb = np.unique(mb)  # Remove duplicates and return unique elements
         return mb.astype(int)
 
-# Mb estimation fro td2c + ranking_6
+# Mb estimation for td2c + ranking_6
     def estimate_time_series_ranking_6(self, dataset, node):
         '''
         This method estimates the Markov Blanket for a given node doing the following steps:
@@ -446,7 +446,7 @@ class MarkovBlanketEstimator:
         mb = np.unique(mb)
         return mb.astype(int)
 
-# Mb estimation fro td2c + ranking_7
+# Mb estimation for td2c + ranking_7
     def estimate_time_series_ranking_7(self, dataset, node):
         '''
         This method estimates the Markov Blanket for a given node doing the following steps:
