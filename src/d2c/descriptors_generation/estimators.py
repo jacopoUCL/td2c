@@ -400,6 +400,7 @@ class MarkovBlanketEstimator:
         mb = np.unique(mb)  # Remove duplicates and return unique elements
         return mb.astype(int)
 
+# Mb estimation fro td2c + ranking_6
     def estimate_time_series_ranking_6(self, dataset, node):
         '''
         This method estimates the Markov Blanket for a given node doing the following steps:
@@ -444,6 +445,49 @@ class MarkovBlanketEstimator:
         # eliminate duplicates
         mb = np.unique(mb)
         return mb.astype(int)
+
+# Mb estimation fro td2c + ranking_7
+    def estimate_time_series_ranking_7(self, dataset, node):
+        '''
+        This method estimates the Markov Blanket for a given node doing the following steps:
+        - select the first passed and future instant of the node for each candidate variable
+        - performs a feature ranking, giving the possibility to keep 1, 2, or 3 most important variables
+        If the target node is Y_t, the Markov Blanket consists of top 1, 2, or 3 variables and their neighboring instants.
+        - finally, it ensures that there are no duplicates in the Markov Blanket
+        '''
+        mb = np.array([node])  # Start with the target node in the MB
+
+        if node + self.n_variables < dataset.shape[1]:
+            mb = np.append(mb, node + self.n_variables)
+        if node - self.n_variables >= 0:
+            mb = np.append(mb, node - self.n_variables)
+
+        mb = mb.astype(int)
+
+        # Feature ranking
+        n = dataset.shape[1]
+        candidates_positions = np.array(list(set(range(n)) - set(mb) - {node}))
+        Y = dataset[:, node]
+        X = dataset[:, candidates_positions]
+
+        order = self.rank_features(X, Y, regr=False)
+        sorted_ind = candidates_positions[order]
+
+        top_variables = sorted_ind[:self.top_vars]
+        top_variables = top_variables.astype(int)
+
+        # Add precedent and subsequent instants for each element of top_variables
+        for elem in top_variables:
+            for i in range(-self.maxlags, self.maxlags + 1):
+                if 0 <= elem + i * self.n_variables < dataset.shape[1]:
+                    mb = np.append(mb, elem + i * self.n_variables)
+
+        # Add top_variables to mb
+        mb = np.append(mb, top_variables)
+        mb = np.unique(mb)
+
+        return mb.astype(int)
+
 
 # MB estimation for td2c with extended ancestors (X_t-i and X_t+i, for i > 1)
     def estimate_time_series_extended(self, dataset, node):

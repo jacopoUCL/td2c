@@ -317,6 +317,9 @@ class D2C:
         elif self.mb_estimator=='ts_rank_6':
             MBca = self.markov_blanket_estimator.estimate_time_series_ranking_6(observations, node=ca)
             MBef = self.markov_blanket_estimator.estimate_time_series_ranking_6(observations, node=ef)
+        elif self.mb_estimator=='ts_rank_7':
+            MBca = self.markov_blanket_estimator.estimate_time_series_ranking_7(observations, node=ca)
+            MBef = self.markov_blanket_estimator.estimate_time_series_ranking_7(observations, node=ef)
         elif self.mb_estimator=='ts_past':
             MBca = self.markov_blanket_estimator.estimate_time_series_extended(observations, node=ca)
             MBef = self.markov_blanket_estimator.estimate_time_series_extended(observations, node=ef)   
