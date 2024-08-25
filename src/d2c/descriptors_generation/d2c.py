@@ -296,9 +296,6 @@ class D2C:
         elif self.mb_estimator=='ts':
             MBca = self.markov_blanket_estimator.estimate_time_series(observations, node=ca)
             MBef = self.markov_blanket_estimator.estimate_time_series(observations, node=ef)
-        # elif self.mb_estimator=='ts_no_cont': NO FUNCTION YET
-        #     MBca = self.markov_blanket_estimator.estimate_time_series_no_cont(observations, node=ca)
-        #     MBef = self.markov_blanket_estimator.estimate_time_series_no_cont(observations, node=ef)
         elif self.mb_estimator=='ts_rank':
             MBca = self.markov_blanket_estimator.estimate_time_series_ranking(observations, node=ca)
             MBef = self.markov_blanket_estimator.estimate_time_series_ranking(observations, node=ef)
@@ -311,6 +308,12 @@ class D2C:
         elif self.mb_estimator=='ts_rank_3':
             MBca = self.markov_blanket_estimator.estimate_time_series_ranking_3(observations, node=ca)
             MBef = self.markov_blanket_estimator.estimate_time_series_ranking_3(observations, node=ef)
+        elif self.mb_estimator=='ts_rank_4':
+            MBca = self.markov_blanket_estimator.estimate_time_series_ranking_4(observations, node=ca)
+            MBef = self.markov_blanket_estimator.estimate_time_series_ranking_4(observations, node=ef)
+        elif self.mb_estimator=='ts_rank_5':
+            MBca = self.markov_blanket_estimator.estimate_time_series_ranking_5(observations, node=ca)
+            MBef = self.markov_blanket_estimator.estimate_time_series_ranking_5(observations, node=ef)
         elif self.mb_estimator=='ts_past':
             MBca = self.markov_blanket_estimator.estimate_time_series_extended(observations, node=ca)
             MBef = self.markov_blanket_estimator.estimate_time_series_extended(observations, node=ef)   
