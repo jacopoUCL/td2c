@@ -65,16 +65,22 @@ notebooks/paper_td2c/
 
 # model.plk
 notebooks/contributions/Real_data_validation/model.pkl
+notebooks/contributions/Real_data_validation/td2c_R_N5_LOPO_combined.pkl
 
 # descriptors
 notebooks/contributions/td2c_extesions/descriptors
+notebooks/contributions/Linear_processes_validation/descriptors
 
 # data
 notebooks/contributions/td2c_extesions/data
+notebooks/contributions/Linear_processes_validation/data/to_use
+notebooks/contributions/Linear_processes_validation/data/models
+
 
 # results
 notebooks/contributions/td2c_extesions/results/Regression/journals
 notebooks/contributions/td2c_extesions/results/KnnCMI/journals
+notebooks/contributions/Linear_processes_validation/results/Regression/journals
 
 # real data csvs
 notebooks/contributions/Real_data_validation/data/Antivirus_activity/*.csv
