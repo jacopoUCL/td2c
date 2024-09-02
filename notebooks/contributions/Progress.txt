@@ -1,15 +1,24 @@
-Computational cost resuction
-    Done some variable (descriptors) selection but lost the files, need to rebuild the notebooks
+Computational cost reduction
+    Done some variable (descriptors) selection but lost the files, need to rebuild the notebooks.
+    Once done we can reduce the number of descriptors and try to run the methods to see if results are similar.
     
 Linear processes validation
+    Done validation with LOPO on the three linear processes (18, 19 and 20).
+    Done validation using as train the three linear processes (18, 19 and 20). 
+    Used outputs in teh real-world data validation.
 
 td2c extensions
-    Set up the notebook, missing only classification and plots for comparisons.
-    missing the TD2C in the pas method.
-    missing how to handle when cmiknn doesn't have a number like cmiknn_3 in the nnotebook's declaration of the method
+    Done the algos and functions for MB td2c exgensions.
+    Can do a couple more (see IPad).
+    Done the notebook to compare the different methods.
+    Missing how to handle when cmiknn doesn't have a number like cmiknn_3 in the notebook's declaration of the method.
+    Need to test all the new functions.
 
 Real data validation
-    tested the datasets from Hybrid... paper, bad results even lowering the treshold for classification
-    should try with bigger datasets (could be better given what written in td2c paper conclusion)
+    Tested the datasets from Hybrid paper, bad results even lowering the treshold for classification.
+    Tried with model trained only on linear model, bad results as well.
+    Need to add confusion matrices.
+    Should try with bigger datasets (could be better given what written in td2c paper conclusion)
+    Could try with CauseMe.
 
 Useful notebooks

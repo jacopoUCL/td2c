@@ -66,6 +66,7 @@ notebooks/paper_td2c/
 # model.plk
 notebooks/contributions/Real_data_validation/model.pkl
 notebooks/contributions/Real_data_validation/td2c_R_N5_LOPO_combined.pkl
+notebooks/contributions/Real_data_validation/data/models
 
 # descriptors
 notebooks/contributions/td2c_extesions/descriptors
