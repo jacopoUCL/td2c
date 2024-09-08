@@ -34,7 +34,7 @@ class MarkovBlanketEstimator:
         self.n_variables = n_variables
         self.maxlags = maxlags
         self.top_vars = top_vars
-        self.causal_df = None
+        self.causal_df = causal_df
 
     def column_based_correlation(self, X, Y):
         """
@@ -508,37 +508,46 @@ class MarkovBlanketEstimator:
         mb = mb.astype(int)
         return mb.astype(int)
 
+# MB estimation for iterative td2c
+    def estimate_iterative(self, dataset, node):
+        '''
+        Estimates the Markov Blanket (MB) for a given node.
+        Adds nodes implicated in the most probable causal edges with the target node.
+        Includes the preceding and subsequent instants of the target node.
+        '''
 
-# MB estimation in an iterative way
-def estimate_iterative(self, dataset, node):
-    '''
-    Estimates the Markov Blanket for a given node iteratively.
-    Adds nodes implicated in the most probable causal edges with the target node.
-    Includes the preceding and subsequent instants of the target node.
-    '''
+        # Initialize Markov Blanket (as a set for uniqueness)
+        mb = set()
 
-    # Initialize Markov Blanket (as a list for efficiency)
-    mb = []
+        # Add previous and subsequent instants of the target node (based on temporal structure)
+        if node + self.n_variables < dataset.shape[1]:
+            mb.add(node + self.n_variables)
+        if node - self.n_variables >= 0:
+            mb.add(node - self.n_variables)
 
-    # Add previous and subsequent instants
-    if node + self.n_variables < dataset.shape[1]:
-        mb.append(node + self.n_variables)
-    if node - self.n_variables >= 0:
-        mb.append(node - self.n_variables)
+        # Iterate through the unique process_ids (1 to 20, skipping 5 and 17)
+        for process_id in range(1, 21):
+            if process_id in [5, 17]:
+                continue  # Skip process_ids 5 and 17
+            
+            # Iterate through the graph_ids (0 to 39)
+            for graph_id in range(40):
+                # Check if graph_id exists in the DataFrame for the current process_id
+                if (process_id, graph_id) in self.causal_df.index:
+                    graph_data = self.causal_df.loc[(process_id, graph_id)]
+                    
+                    # Loop through the rows of the DataFrame to find edges connected to the node
+                    for i in range(len(graph_data)):
+                        # Check if the current row involves the target node as source or destination
+                        if graph_data.loc[i, 'edge_dest'] == node:
+                            mb.add(graph_data.loc[i, 'edge_source'])
+                        elif graph_data.loc[i, 'edge_source'] == node:
+                            mb.add(graph_data.loc[i, 'edge_dest'])
 
-    # Iterate through the nested dictionary structure of causal_df
-    for process_id, process_data in self.causal_df.items():
-        for graph_id, graph_data in process_data.items():
-            for i in range(len(graph_data)):
-                if graph_data.loc[i, 'edge_dest'] == node:
-                    mb.append(graph_data.loc[i, 'edge_source'])
-                elif graph_data.loc[i, 'edge_source'] == node:
-                    mb.append(graph_data.loc[i, 'edge_dest'])
+        # Convert mb to a NumPy array and make sure it's of type int
+        mb = np.array(list(mb), dtype=int)
 
-    # Convert mb to a NumPy array and make sure it's of type int
-    mb = np.array(mb, dtype=int)
-
-    return mb
+        return mb
 
 
 cache = Cache(maxsize=1024)  # Define cache size
