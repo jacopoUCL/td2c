@@ -527,13 +527,13 @@ def estimate_iterative(self, dataset, node):
         mb.append(node - self.n_variables)
 
     # Iterate through the nested dictionary structure of causal_df
-    for process_id, process_data in self.causal_df[4].items():
+    for process_id, process_data in self.causal_df.items():
         for graph_id, graph_data in process_data.items():
             for i in range(len(graph_data)):
-                if graph_data.loc[i, 'effect'] == node:
-                    mb.append(graph_data.loc[i, 'cause'])
-                elif graph_data.loc[i, 'cause'] == node:
-                    mb.append(graph_data.loc[i, 'effect'])
+                if graph_data.loc[i, 'edge_dest'] == node:
+                    mb.append(graph_data.loc[i, 'edge_source'])
+                elif graph_data.loc[i, 'edge_source'] == node:
+                    mb.append(graph_data.loc[i, 'edge_dest'])
 
     # Convert mb to a NumPy array and make sure it's of type int
     mb = np.array(mb, dtype=int)
