@@ -53,7 +53,8 @@ class D2C:
                  mb_estimator = 'original',
                  seed= 42, 
                  n_jobs=1,
-                 top_vars = 3) -> None:
+                 top_vars = 3,
+                 causal_df = None) -> None:
         
         self.DAGs = dags
         self.observations = observations
@@ -68,11 +69,12 @@ class D2C:
         self.cmi = cmi
         self.normalize = normalize
         self.top_vars = top_vars
+        self.causal_df = causal_df
 
         self.x_y = None # Placeholder for computed descriptors, list of dictionaries
         self.test_couples = []  # List of couples for which descriptors have been computed
 
-        self.markov_blanket_estimator = MarkovBlanketEstimator(size=min(MB_size, n_variables - 2), n_variables = n_variables, maxlags=maxlags, top_vars = self.top_vars)
+        self.markov_blanket_estimator = MarkovBlanketEstimator(size=min(MB_size, n_variables - 2), n_variables = n_variables, maxlags=maxlags, top_vars = self.top_vars, causal_df = self.causal_df)
 
         self.mb_estimator = mb_estimator
         self.mutual_information_estimator = MutualInformationEstimator(proxy=mutual_information_proxy, proxy_params=proxy_params, k=int(self.cmi.split('_')[-1]) if self.cmi.startswith('cmiknn') else None)
@@ -322,7 +324,10 @@ class D2C:
             MBef = self.markov_blanket_estimator.estimate_time_series_ranking_7(observations, node=ef)
         elif self.mb_estimator=='ts_past':
             MBca = self.markov_blanket_estimator.estimate_time_series_extended(observations, node=ca)
-            MBef = self.markov_blanket_estimator.estimate_time_series_extended(observations, node=ef)   
+            MBef = self.markov_blanket_estimator.estimate_time_series_extended(observations, node=ef)
+        elif self.mb_estimator=='iterative':
+            MBca = self.markov_blanket_estimator.estimate_iterative(observations, node=ca)
+            MBef = self.markov_blanket_estimator.estimate_iterative(observations, node=ef)
             
         common_causes_eff = list(set(MBca).intersection(MBef))
         mbca_mbef_couples = [(i, j) for i in range(len(MBca)) for j in range(len(MBef))]

@@ -510,35 +510,36 @@ class MarkovBlanketEstimator:
 
 
 # MB estimation in an iterative way
-    def estimate_iterative(self, dataset, node, causal_df):
-        '''
-        This method estimates the Markov Blanket for a given node in an iterative way.
-        It takes the result of the previous iteration and adds the nodes implicated in the most probably causal edges with the target node.
-        So both if the target node is the cause or the effect of the case, the Markov Blanket consists of the nodes that are the most probably causes or effects of it,
-        plus the precedent and subsequent instants of the target node, as in the classic td2c.
-        '''
+def estimate_iterative(self, dataset, node):
+    '''
+    Estimates the Markov Blanket for a given node iteratively.
+    Adds nodes implicated in the most probable causal edges with the target node.
+    Includes the preceding and subsequent instants of the target node.
+    '''
 
-        # previous and subsequent instants
-        mb = np.array([])
-        if node + self.n_variables < dataset.shape[1]:
-            mb = np.append(mb, node + self.n_variables)
-        if node - self.n_variables >= 0:
-            mb = np.append(mb, node - self.n_variables)
-        mb = mb.astype(int)
+    # Initialize Markov Blanket (as a list for efficiency)
+    mb = []
 
-        # Iterate through the nested dictionary structure of causal_df
-        for process_id, process_data in causal_df[4].items():
-            for graph_id, graph_data in process_data.items():
-                for i in range(len(graph_data)):
-                    if graph_data.loc[i, 'effect'] == node:
-                        mb = np.append(mb, graph_data.loc[i, 'cause'])
-                    if graph_data.loc[i, 'cause'] == node:
-                        mb = np.append(mb, graph_data.loc[i, 'effect'])
+    # Add previous and subsequent instants
+    if node + self.n_variables < dataset.shape[1]:
+        mb.append(node + self.n_variables)
+    if node - self.n_variables >= 0:
+        mb.append(node - self.n_variables)
 
-        # Make mb type int
-        mb = mb.astype(int)
+    # Iterate through the nested dictionary structure of causal_df
+    for process_id, process_data in self.causal_df[4].items():
+        for graph_id, graph_data in process_data.items():
+            for i in range(len(graph_data)):
+                if graph_data.loc[i, 'effect'] == node:
+                    mb.append(graph_data.loc[i, 'cause'])
+                elif graph_data.loc[i, 'cause'] == node:
+                    mb.append(graph_data.loc[i, 'effect'])
 
-        return mb
+    # Convert mb to a NumPy array and make sure it's of type int
+    mb = np.array(mb, dtype=int)
+
+    return mb
+
 
 cache = Cache(maxsize=1024)  # Define cache size
 
