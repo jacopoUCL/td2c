@@ -488,7 +488,6 @@ class MarkovBlanketEstimator:
 
         return mb.astype(int)
 
-
 # MB estimation for td2c with extended ancestors (X_t-i and X_t+i, for i > 1)
     def estimate_time_series_extended(self, dataset, node):
         '''
@@ -507,6 +506,36 @@ class MarkovBlanketEstimator:
         
         mb = mb.astype(int)
         return mb.astype(int)
+
+
+# MB estimation in an iterative way
+    def estimate_iterative(self, dataset, node, causal_df):
+        '''
+        This method estimates the Markov Blanket for a given node in an iterative way.
+        It takes the result of the previous iteration and adds the nodes implicated in the most probably causal edges with the target node.
+        So both if the target node is the case or the effect of the case, the Markov Blanket consists of the nodes that are the most probably causes or effects of it,
+        plus the prreedent and subsequent instants of the target node, as in the classic td2c.
+        '''
+
+        # previous and subsequent instants
+        mb = np.array([])
+        if node + self.n_variables < dataset.shape[1]:
+            mb = np.append(mb, node + self.n_variables)
+        if node - self.n_variables >= 0:
+            mb = np.append(mb, node - self.n_variables)
+        mb = mb.astype(int)
+
+        # looking athe the causal_df, add ot mb the nodes that are the most probably causes or effects of the target node
+        for i in range(len(causal_df)):
+            if causal_df.loc[i, 'effect'] == node:
+                mb = np.append(mb, causal_df.loc[i, 'cause'])
+            if causal_df.loc[i, 'cause'] == node:
+                mb = np.append(mb, causal_df.loc[i, 'effect'])
+
+        # make mb type int
+        mb = mb.astype(int)
+
+        return mb
 
 cache = Cache(maxsize=1024)  # Define cache size
 
