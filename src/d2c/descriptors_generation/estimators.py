@@ -19,7 +19,7 @@ import time
 ################################################################################################################################### 
 
 class MarkovBlanketEstimator:
-    def __init__(self, size=5, n_variables=5, maxlags=5, verbose=True, top_vars=3):
+    def __init__(self, size=5, n_variables=5, maxlags=5, verbose=True, top_vars=3, causal_df=None):
         """
         Initializes the Markov Blanket Estimator with specified parameters.
         
@@ -34,6 +34,7 @@ class MarkovBlanketEstimator:
         self.n_variables = n_variables
         self.maxlags = maxlags
         self.top_vars = top_vars
+        self.causal_df = None
 
     def column_based_correlation(self, X, Y):
         """
@@ -513,8 +514,8 @@ class MarkovBlanketEstimator:
         '''
         This method estimates the Markov Blanket for a given node in an iterative way.
         It takes the result of the previous iteration and adds the nodes implicated in the most probably causal edges with the target node.
-        So both if the target node is the case or the effect of the case, the Markov Blanket consists of the nodes that are the most probably causes or effects of it,
-        plus the prreedent and subsequent instants of the target node, as in the classic td2c.
+        So both if the target node is the cause or the effect of the case, the Markov Blanket consists of the nodes that are the most probably causes or effects of it,
+        plus the precedent and subsequent instants of the target node, as in the classic td2c.
         '''
 
         # previous and subsequent instants
@@ -525,14 +526,16 @@ class MarkovBlanketEstimator:
             mb = np.append(mb, node - self.n_variables)
         mb = mb.astype(int)
 
-        # looking athe the causal_df, add ot mb the nodes that are the most probably causes or effects of the target node
-        for i in range(len(causal_df)):
-            if causal_df.loc[i, 'effect'] == node:
-                mb = np.append(mb, causal_df.loc[i, 'cause'])
-            if causal_df.loc[i, 'cause'] == node:
-                mb = np.append(mb, causal_df.loc[i, 'effect'])
+        # Iterate through the nested dictionary structure of causal_df
+        for process_id, process_data in causal_df[4].items():
+            for graph_id, graph_data in process_data.items():
+                for i in range(len(graph_data)):
+                    if graph_data.loc[i, 'effect'] == node:
+                        mb = np.append(mb, graph_data.loc[i, 'cause'])
+                    if graph_data.loc[i, 'cause'] == node:
+                        mb = np.append(mb, graph_data.loc[i, 'effect'])
 
-        # make mb type int
+        # Make mb type int
         mb = mb.astype(int)
 
         return mb
