@@ -98,5 +98,6 @@ notebooks/contributions/Real_data_validation/data/temperature/results/*.csv
 notebooks/contributions/Real_data_validation/data/veilleux/*.csv
 notebooks/contributions/Real_data_validation/data/veilleux/results/*.csv
 
-
+# iterative
+notebooks/contributions/td2c_extesions/results/Regression/try_complete_function
 
