@@ -506,7 +506,7 @@ class MarkovBlanketEstimator:
                 mb = np.append(mb, node - i*self.n_variables)
         
         mb = mb.astype(int)
-        return mb.astype(int)
+        return mb
 
 # MB estimation for iterative td2c
     def estimate_iterative(self, dataset, node):
@@ -517,37 +517,54 @@ class MarkovBlanketEstimator:
         '''
 
         # Initialize Markov Blanket (as a set for uniqueness)
-        mb = set()
+        mb = np.array([])
 
         # Add previous and subsequent instants of the target node (based on temporal structure)
         if node + self.n_variables < dataset.shape[1]:
-            mb.add(node + self.n_variables)
+            mb = np.append(mb, node + self.n_variables)
         if node - self.n_variables >= 0:
-            mb.add(node - self.n_variables)
+            mb = np.append(mb, node - self.n_variables)
 
-        # Iterate through the unique process_ids (1 to 20, skipping 5 and 17)
-        for process_id in range(1, 21):
-            if process_id in [5, 17]:
-                continue  # Skip process_ids 5 and 17
-            
-            # Iterate through the graph_ids (0 to 39)
-            for graph_id in range(40):
-                # Check if graph_id exists in the DataFrame for the current process_id
-                if (process_id, graph_id) in self.causal_df.index:
-                    graph_data = self.causal_df.loc[(process_id, graph_id)]
-                    
-                    # Loop through the rows of the DataFrame to find edges connected to the node
-                    for i in range(len(graph_data)):
-                        # Check if the current row involves the target node as source or destination
-                        if graph_data.loc[i, 'edge_dest'] == node:
-                            mb.add(graph_data.loc[i, 'edge_source'])
-                        elif graph_data.loc[i, 'edge_source'] == node:
-                            mb.add(graph_data.loc[i, 'edge_dest'])
 
-        # Convert mb to a NumPy array and make sure it's of type int
-        mb = np.array(list(mb), dtype=int)
+        # Iterate through the dataframe self.causal_df to add to node's Markov Blanket the nodes in edges connected to the target node
+        # the columns in self.causal_df are: 'process_id', 'graph_id', 'edge_source', 'edge_dest' and 'y_pred_proba'
+        for i in range(len(self.causal_df)):
+            if self.causal_df.loc[i, 'edge_dest'] == node:
+                mb = np.append(mb, self.causal_df.loc[i, 'edge_source'])
+            elif self.causal_df.loc[i, 'edge_source'] == node:
+                mb = np.append(mb, self.causal_df.loc[i, 'edge_dest'])
 
+        # Convert Markov Blanket to numpy array
+        mb = np.unique(mb)
+        mb = mb.astype(int)
         return mb
+
+
+        # # Iterate through the unique process_ids (1 to 20, skipping 5 and 17)
+        # for process_id in range(1, 21):
+        #     if process_id in [5, 17]:
+        #         continue  # Skip process_ids 5 and 17
+            
+        #     # Iterate through the graph_ids (0 to 39)
+        #     for graph_id in range(40):
+        #         # Check if graph_id exists in the DataFrame for the current process_id
+        #         if (process_id, graph_id) in self.causal_df.index:
+        #             graph_data = self.causal_df.loc[(process_id, graph_id)]
+                    
+        #             # Loop through the rows of the DataFrame to find edges connected to the node
+        #             for i in range(len(graph_data)):
+        #                 # Check if the current row involves the target node as source or destination
+        #                 if graph_data.loc[i, 'edge_dest'] == node:
+        #                     mb.add(graph_data.loc[i, 'edge_source'])
+        #                 elif graph_data.loc[i, 'edge_source'] == node:
+        #                     mb.add(graph_data.loc[i, 'edge_dest'])
+
+        # # Convert mb to a NumPy array and make sure it's of type int
+        # mb = np.array(list(mb), dtype=int)
+
+        # return mb
+
+
 
 
 cache = Cache(maxsize=1024)  # Define cache size
