@@ -525,7 +525,6 @@ class MarkovBlanketEstimator:
         if node - self.n_variables >= 0:
             mb = np.append(mb, node - self.n_variables)
 
-
         # Iterate through the dataframe self.causal_df to add to node's Markov Blanket the nodes in edges connected to the target node
         # the columns in self.causal_df are: 'process_id', 'graph_id', 'edge_source', 'edge_dest' and 'y_pred_proba'
         for i in range(len(self.causal_df)):
