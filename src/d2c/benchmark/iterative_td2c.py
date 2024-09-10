@@ -93,7 +93,7 @@ class IterativeTD2C():
         print()
         print(f'Iterative TD2C - Method: {self.method} - Max iterations: {self.it} - Variables to keep per DAG: {self.k} - Top Variables: {self.top_vars} - Treshold: {self.treshold} - Size of Causal DF: {self.size_causal_df}')
         print()
-        if self.COUPLES_TO_CONSIDER_PER_DAG == -1 and self.size_causal_df == 5 and self.treshold == False:
+        if self.COUPLES_TO_CONSIDER_PER_DAG == -1 and self.treshold == False:
             print('Using all couples for each DAG')
             print(f'This iteration will take approximately {8.5*self.it} minutes')
             print()
@@ -481,13 +481,15 @@ class IterativeTD2C():
                 print(causal_df_unif_1)
                 print()
         
+            return self.treshold, self.method, self.k, self.it, self.size_causal_df, self.COUPLES_TO_CONSIDER_PER_DAG, roc_scores
+
         else:
             print()
             print("Wise choice! Change the parameters and try again.")
             return
          
-    def plot_results(treshold, method, k, it, size_causal_df, COUPLES_TO_CONSIDER_PER_DAG, roc_scores):
-            if treshold == None or method == None or k == None or it == None or size_causal_df == None or COUPLES_TO_CONSIDER_PER_DAG == None or roc_scores == None:
+    def plot_results(self, roc_scores):
+            if self.treshold == None or self.method == None or self.k == None or self.it == None or self.size_causal_df == None or self.COUPLES_TO_CONSIDER_PER_DAG == None or roc_scores == None:
                 print('Please run iterative_td2c() function first')
                 return
             else:
@@ -496,13 +498,13 @@ class IterativeTD2C():
                 print()
 
                 plt.figure(figsize=(12, 6))
-                plt.plot(range(1, it+1), roc_scores, marker='o')
-                if treshold == False:
-                    size = size_causal_df
-                    plt.title(f'ROC-AUC scores for Iterative {method} ({it} iterations and {size} top vars) with Regression MI (5 vars processes) ({COUPLES_TO_CONSIDER_PER_DAG} couples per dag)')
+                plt.plot(range(1, self.it+1), roc_scores, marker='o')
+                if self.treshold == False:
+                    size = self.size_causal_df
+                    plt.title(f'ROC-AUC scores for Iterative {self.method} ({self.it} iterations and {size} top vars) with Regression MI (5 vars processes) ({self.COUPLES_TO_CONSIDER_PER_DAG} couples per dag)')
                 else:
-                    size = k
-                    plt.title(f'ROC-AUC scores for Iterative {method} ({it} iterations and {size} top vars) with Regression MI (5 vars processes) ({COUPLES_TO_CONSIDER_PER_DAG} couples per dag)')
+                    size = self.k
+                    plt.title(f'ROC-AUC scores for Iterative {self.method} ({self.it} iterations and {size} top vars) with Regression MI (5 vars processes) ({self.COUPLES_TO_CONSIDER_PER_DAG} couples per dag)')
                 plt.xlabel('Iterations')
                 plt.ylabel('ROC-AUC score')
                 plt.grid()
@@ -510,12 +512,12 @@ class IterativeTD2C():
 
                 # save the plot in folder
                 output_folder = '/home/jpalombarini/td2c/notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/plots/'
-                plt.savefig(output_folder + f'ROC_AUC_scores_TD2C_{method}_{it}_iterations_{size}_top_vars_{COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag.pdf')
+                plt.savefig(output_folder + f'ROC_AUC_scores_TD2C_{self.method}_{self.it}_iterations_{size}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag.pdf')
                 
                 plt.show()
 
-    def df_scores(roc_scores, method, it, size, COUPLES_TO_CONSIDER_PER_DAG):
-            if roc_scores == None or method == None or it == None or size == None or COUPLES_TO_CONSIDER_PER_DAG == None:
+    def df_scores(self, roc_scores):
+            if roc_scores == None or self.method == None or self.it == None or self.size == None or self.COUPLES_TO_CONSIDER_PER_DAG == None:
                 print('Please run iterative_td2c() function first')
                 return
             else:
@@ -523,10 +525,10 @@ class IterativeTD2C():
                 print('Resultant ROC-AUC scores:')
                 print()
                 roc_scores_df = pd.DataFrame(roc_scores, columns=['roc_score'])
-                roc_scores_df['iteration'] = range(1, it+1)
+                roc_scores_df['iteration'] = range(1, self.it+1)
 
                 # save the df in a csv file
                 output_folder = '/home/jpalombarini/td2c/notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/metrics/'
-                roc_scores_df.to_csv(output_folder + f'roc_scores_TD2C_{method}_{it}_iterations_{size}_top_vars_{COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag.csv', index=False)
+                roc_scores_df.to_csv(output_folder + f'roc_scores_TD2C_{self.method}_{self.it}_iterations_{self.size}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag.csv', index=False)
                 
                 print(roc_scores_df)
