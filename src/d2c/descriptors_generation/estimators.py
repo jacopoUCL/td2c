@@ -508,74 +508,82 @@ class MarkovBlanketEstimator:
         mb = mb.astype(int)
         return mb
 
-# MB estimation for iterative td2c
-    def estimate_iterative(self, dataset, node):
+# # MB estimation for iterative td2c       OFFICIAL
+#     def estimate_iterative(self, dataset, node):
+#         '''
+#         Estimates the Markov Blanket (MB) for a given node.
+#         Adds nodes implicated in the most probable causal edges with the target node.
+#         Includes the preceding and subsequent instants of the target node.
+#         '''
+
+#         # Initialize Markov Blanket
+#         mb = np.array([])
+
+#         # Add previous and subsequent instants of the target node (based on temporal structure)
+#         if node + self.n_variables < dataset.shape[1]:
+#             mb = np.append(mb, node + self.n_variables)
+#         if node - self.n_variables >= 0:
+#             mb = np.append(mb, node - self.n_variables)
+
+#         # Check if the node is in either 'edge_dest' or 'edge_source' columns
+#             if not ((self.causal_df['edge_dest'] == node).any() or (self.causal_df['edge_source'] == node).any()):
+#                 # If node is not in either column, return mb
+#                 mb = np.unique(mb)
+#                 mb = mb.astype(int)
+#                 return mb
+
+#         # Iterate through the dataframe self.causal_df to add to node's Markov Blanket the nodes in edges connected to the target node
+#         # the columns in self.causal_df are: 'process_id', 'graph_id', 'edge_source', 'edge_dest' and 'y_pred_proba'
+
+#         # Filter the DataFrame to include only rows where the node is in either 'edge_dest' or 'edge_source'
+#         filtered_df = self.causal_df[(self.causal_df['edge_dest'] == node) | (self.causal_df['edge_source'] == node)]
+
+#         # Iterate over the filtered DataFrame
+#         for i in range(len(filtered_df)):
+#             if filtered_df.loc[i, 'edge_dest'] == node:
+#                 mb = np.append(mb, filtered_df.loc[i, 'edge_source'])
+#             elif filtered_df.loc[i, 'edge_source'] == node:
+#                 mb = np.append(mb, filtered_df.loc[i, 'edge_dest'])
+
+#         # Convert Markov Blanket to numpy array
+#         mb = np.unique(mb)
+#         mb = mb.astype(int)
+#         return mb
+
+
+    def estimate_iterative(self, dataset, node): # OFFICIAL BUT IN THEORY FASTER
         '''
         Estimates the Markov Blanket (MB) for a given node.
         Adds nodes implicated in the most probable causal edges with the target node.
         Includes the preceding and subsequent instants of the target node.
         '''
 
-        # Initialize Markov Blanket (as a set for uniqueness)
-        mb = np.array([])
+        # Initialize Markov Blanket
+        mb = set()
 
         # Add previous and subsequent instants of the target node (based on temporal structure)
         if node + self.n_variables < dataset.shape[1]:
-            mb = np.append(mb, node + self.n_variables)
+            mb.add(node + self.n_variables)
         if node - self.n_variables >= 0:
-            mb = np.append(mb, node - self.n_variables)
+            mb.add(node - self.n_variables)
 
         # Check if the node is in either 'edge_dest' or 'edge_source' columns
-            if not ((self.causal_df['edge_dest'] == node).any() or (self.causal_df['edge_source'] == node).any()):
-                # If node is not in either column, return mb
-                mb = np.unique(mb)
-                mb = mb.astype(int)
-                return mb
-
-        # Iterate through the dataframe self.causal_df to add to node's Markov Blanket the nodes in edges connected to the target node
-        # the columns in self.causal_df are: 'process_id', 'graph_id', 'edge_source', 'edge_dest' and 'y_pred_proba'
+        if not ((self.causal_df['edge_dest'] == node).any() or (self.causal_df['edge_source'] == node).any()):
+            # If node is not in either column, return mb as a sorted numpy array
+            return np.array(sorted(mb), dtype=int)
 
         # Filter the DataFrame to include only rows where the node is in either 'edge_dest' or 'edge_source'
         filtered_df = self.causal_df[(self.causal_df['edge_dest'] == node) | (self.causal_df['edge_source'] == node)]
 
-        # Iterate over the filtered DataFrame
-        for i in range(len(filtered_df)):
-            if filtered_df.loc[i, 'edge_dest'] == node:
-                mb = np.append(mb, filtered_df.loc[i, 'edge_source'])
-            elif filtered_df.loc[i, 'edge_source'] == node:
-                mb = np.append(mb, filtered_df.loc[i, 'edge_dest'])
+        # Add both edge_dest and edge_source columns to the Markov Blanket in one go
+        mb.update(filtered_df['edge_source'][filtered_df['edge_dest'] == node])
+        mb.update(filtered_df['edge_dest'][filtered_df['edge_source'] == node])
 
-        # Convert Markov Blanket to numpy array
-        mb = np.unique(mb)
-        mb = mb.astype(int)
-        return mb
+        # Convert Markov Blanket to a sorted numpy array for consistency
+        return np.array(sorted(mb), dtype=int)
 
 
-        # # Iterate through the unique process_ids (1 to 20, skipping 5 and 17)
-        # for process_id in range(1, 21):
-        #     if process_id in [5, 17]:
-        #         continue  # Skip process_ids 5 and 17
-            
-        #     # Iterate through the graph_ids (0 to 39)
-        #     for graph_id in range(40):
-        #         # Check if graph_id exists in the DataFrame for the current process_id
-        #         if (process_id, graph_id) in self.causal_df.index:
-        #             graph_data = self.causal_df.loc[(process_id, graph_id)]
-                    
-        #             # Loop through the rows of the DataFrame to find edges connected to the node
-        #             for i in range(len(graph_data)):
-        #                 # Check if the current row involves the target node as source or destination
-        #                 if graph_data.loc[i, 'edge_dest'] == node:
-        #                     mb.add(graph_data.loc[i, 'edge_source'])
-        #                 elif graph_data.loc[i, 'edge_source'] == node:
-        #                     mb.add(graph_data.loc[i, 'edge_dest'])
-
-        # # Convert mb to a NumPy array and make sure it's of type int
-        # mb = np.array(list(mb), dtype=int)
-
-        # return mb
-
-
+# TRY WITH THE VERSION THAT USES A DICTIONARY OF DATAFRAMES
 
 
 cache = Cache(maxsize=1024)  # Define cache size
