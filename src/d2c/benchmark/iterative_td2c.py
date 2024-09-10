@@ -7,8 +7,8 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import warnings
-from sklearn.exceptions import UndefinedMetricWarning
 
+from sklearn.exceptions import UndefinedMetricWarning
 from imblearn.ensemble import BalancedRandomForestClassifier
 from sklearn.metrics import roc_auc_score
 
@@ -481,7 +481,7 @@ class IterativeTD2C():
                 print(causal_df_unif_1)
                 print()
         
-            return self.treshold, self.method, self.k, self.it, self.size_causal_df, self.COUPLES_TO_CONSIDER_PER_DAG, roc_scores
+            return roc_scores
 
         else:
             print()
@@ -500,11 +500,9 @@ class IterativeTD2C():
                 plt.figure(figsize=(12, 6))
                 plt.plot(range(1, self.it+1), roc_scores, marker='o')
                 if self.treshold == False:
-                    size = self.size_causal_df
-                    plt.title(f'ROC-AUC scores for Iterative {self.method} ({self.it} iterations and {size} top vars) with Regression MI (5 vars processes) ({self.COUPLES_TO_CONSIDER_PER_DAG} couples per dag)')
+                    plt.title(f'ROC-AUC scores for Iterative {self.method} ({self.it} iterations and {self.size_causal_df} top vars) with Regression MI (5 vars processes) ({self.COUPLES_TO_CONSIDER_PER_DAG} couples per dag)')
                 else:
-                    size = self.k
-                    plt.title(f'ROC-AUC scores for Iterative {self.method} ({self.it} iterations and {size} top vars) with Regression MI (5 vars processes) ({self.COUPLES_TO_CONSIDER_PER_DAG} couples per dag)')
+                    plt.title(f'ROC-AUC scores for Iterative {self.method} ({self.it} iterations and {self.k} top vars) with Regression MI (5 vars processes) ({self.COUPLES_TO_CONSIDER_PER_DAG} couples per dag)')
                 plt.xlabel('Iterations')
                 plt.ylabel('ROC-AUC score')
                 plt.grid()
@@ -512,12 +510,14 @@ class IterativeTD2C():
 
                 # save the plot in folder
                 output_folder = '/home/jpalombarini/td2c/notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/plots/'
-                plt.savefig(output_folder + f'ROC_AUC_scores_TD2C_{self.method}_{self.it}_iterations_{size}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag.pdf')
-                
+                if self.treshold == False:
+                    plt.savefig(output_folder + f'ROC_AUC_scores_TD2C_{self.method}_{self.it}_iterations_{self.size_causal_df}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag.pdf')
+                else:
+                    plt.savefig(output_folder + f'ROC_AUC_scores_TD2C_{self.method}_{self.it}_iterations_{self.k}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag.pdf')
                 plt.show()
 
     def df_scores(self, roc_scores):
-            if roc_scores == None or self.method == None or self.it == None or self.size == None or self.COUPLES_TO_CONSIDER_PER_DAG == None:
+            if roc_scores == None or self.method == None or self.it == None or self.COUPLES_TO_CONSIDER_PER_DAG == None or self.size_causal_df == None:
                 print('Please run iterative_td2c() function first')
                 return
             else:
@@ -529,6 +529,8 @@ class IterativeTD2C():
 
                 # save the df in a csv file
                 output_folder = '/home/jpalombarini/td2c/notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/metrics/'
-                roc_scores_df.to_csv(output_folder + f'roc_scores_TD2C_{self.method}_{self.it}_iterations_{self.size}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag.csv', index=False)
-                
+                if self.treshold == False:
+                    roc_scores_df.to_csv(output_folder + f'roc_scores_TD2C_{self.method}_{self.it}_iterations_{self.size_causal_df}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag.csv', index=False)
+                else:
+                    roc_scores_df.to_csv(output_folder + f'roc_scores_TD2C_{self.method}_{self.it}_iterations_{self.k}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag.csv', index=False)
                 print(roc_scores_df)
