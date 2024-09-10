@@ -525,13 +525,25 @@ class MarkovBlanketEstimator:
         if node - self.n_variables >= 0:
             mb = np.append(mb, node - self.n_variables)
 
+        # Check if the node is in either 'edge_dest' or 'edge_source' columns
+            if not ((self.causal_df['edge_dest'] == node).any() or (self.causal_df['edge_source'] == node).any()):
+                # If node is not in either column, return mb
+                mb = np.unique(mb)
+                mb = mb.astype(int)
+                return mb
+
         # Iterate through the dataframe self.causal_df to add to node's Markov Blanket the nodes in edges connected to the target node
         # the columns in self.causal_df are: 'process_id', 'graph_id', 'edge_source', 'edge_dest' and 'y_pred_proba'
-        for i in range(len(self.causal_df)):
-            if self.causal_df.loc[i, 'edge_dest'] == node:
-                mb = np.append(mb, self.causal_df.loc[i, 'edge_source'])
-            elif self.causal_df.loc[i, 'edge_source'] == node:
-                mb = np.append(mb, self.causal_df.loc[i, 'edge_dest'])
+
+        # Filter the DataFrame to include only rows where the node is in either 'edge_dest' or 'edge_source'
+        filtered_df = self.causal_df[(self.causal_df['edge_dest'] == node) | (self.causal_df['edge_source'] == node)]
+
+        # Iterate over the filtered DataFrame
+        for i in range(len(filtered_df)):
+            if filtered_df.loc[i, 'edge_dest'] == node:
+                mb = np.append(mb, filtered_df.loc[i, 'edge_source'])
+            elif filtered_df.loc[i, 'edge_source'] == node:
+                mb = np.append(mb, filtered_df.loc[i, 'edge_dest'])
 
         # Convert Markov Blanket to numpy array
         mb = np.unique(mb)
