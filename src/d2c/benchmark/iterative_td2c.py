@@ -23,9 +23,9 @@ class IterativeTD2C():
     and df_scores() to plot the results and save the ROC-AUC scores in a csv file.
     """
 
-    def __init__(self, method = 'ts', k = 1, it = 6, top_vars = 3, treshold = False, 
+    def __init__(self, method = 'ts', k = 1, it = 6, top_vars = 3, treshold = False, N_JOBS = 50, noise_std_filter = 0.01,
                  treshold_value = 0.9, size_causal_df = 5, COUPLES_TO_CONSIDER_PER_DAG = -1,
-                 maxlags = 5, SEED = 42, N_JOBS = 40, MB_SIZE = 2, max_neighborhood_size_filter = 2,
+                 maxlags = 5, SEED = 42, MB_SIZE = 2, max_neighborhood_size_filter = 2,
                  data_folder = 'home/data/', descr_folder = 'home/descr/', results_folder = 'home/results/'):
         
         self.method = method
@@ -41,9 +41,10 @@ class IterativeTD2C():
         self.COUPLES_TO_CONSIDER_PER_DAG = COUPLES_TO_CONSIDER_PER_DAG
         self.maxlags = maxlags
         self.SEED = SEED
-        self.NJOBS = N_JOBS
         self.MB_SIZE = MB_SIZE
         self.max_neighborhood_size_filter = max_neighborhood_size_filter
+        self.noise_std_filter = noise_std_filter
+        self.N_JOBS = N_JOBS
 
     def iterative_td2c(self):
         """
