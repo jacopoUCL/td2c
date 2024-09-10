@@ -17,7 +17,7 @@ from d2c.descriptors_generation import D2C, DataLoader
 
 # ITERATIVE TD2C FUNCTION #################################################################################
 
-class IterativeTD2C:
+class IterativeTD2C():
     """
     This class contains the function iterative_td2c() that performs the iterative TD2C method and the functions plot_results() 
     and df_scores() to plot the results and save the ROC-AUC scores in a csv file.
