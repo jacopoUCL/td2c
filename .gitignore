@@ -99,5 +99,26 @@ notebooks/contributions/Real_data_validation/data/veilleux/*.csv
 notebooks/contributions/Real_data_validation/data/veilleux/results/*.csv
 
 # iterative
-notebooks/contributions/td2c_extesions/results/Regression/try_complete_function
+notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/journals/
+notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/metrics/estimate_1/
+notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/metrics/estimate_2/
+notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/metrics/estimate_3/
+notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/metrics/estimate_4/
+notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/metrics/estimate_5/
+notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/metrics/estimate_6/
+notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/metrics/estimate_7/
+notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/metrics/estimate_8/
+notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/metrics/estimate_9/
+notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/metrics/estimate_10/
+notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/metrics/estimate_11/
+notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/metrics/estimate_12/
+notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/metrics/estimate_13/
+notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/metrics/estimate_14/
+notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/metrics/estimate_15/
+notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/metrics/estimate_16/
+notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/metrics/estimate_17/
+notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/metrics/estimate_18/
+notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/metrics/estimate_19/
+notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/metrics/estimate_20/
+
 
