@@ -373,6 +373,9 @@ class IterativeTD2C():
                     if roc > 0.5:
                         roc_first = roc
                     else:
+                        print()
+                        print(f'ROC-AUC score: {roc}')
+                        print()
                         print('ROC-AUC is too low, let\'s stop here.')
                         break
                 elif i > 1:
@@ -380,7 +383,9 @@ class IterativeTD2C():
                         stop_2 = stop_2 + 1
                         if stop_2 == 3:
                             print()
-                            print('Estimation are not improving, let\'s stop here.')
+                            print(f'ROC-AUC score: {roc}')
+                            print()
+                            print('Estimations are not improving, let\'s stop here.')
                             print()
                             break
                     else:
@@ -388,7 +393,9 @@ class IterativeTD2C():
                     
                     if roc <= roc_first-0.2:
                         print()
-                        print('Estimation are not improving, let\'s stop here.')
+                        print(f'ROC-AUC score: {roc}')
+                        print()
+                        print('Estimations are not improving, let\'s stop here.')
                         print()
                         break
                 
@@ -447,27 +454,25 @@ class IterativeTD2C():
                 if self.treshold == True:
                     # drop rows with y_pred_proba < 0.7 (not necessary given the next step)
                     causal_df_unif_1 = causal_df_unif_1[causal_df_unif_1['y_pred_proba'] >= self.treshold_value]
-                    if causal_df_unif_1.shape[0] > 1:
-                        causal_df_unif_1 = causal_df_unif_1.nlargest(10, 'y_pred_proba')
+                    # if causal_df_unif_1.shape[0] > 1:
+                    causal_df_unif_1 = causal_df_unif_1.nlargest(10, 'y_pred_proba')
 
                 else:
                     # if n row > n, keep only the top n rows with highest y_pred_proba
-                    if causal_df_unif_1.shape[0] > 1:
-                        if i == 1 or self.size_causal_df == 1:
-                            causal_df_unif_1 = causal_df_unif_1.nlargest(self.size_causal_df, 'y_pred_proba')
+                    # if causal_df_unif_1.shape[0] > 1:
+                    if i == 1 or self.size_causal_df == 1:
+                        causal_df_unif_1 = causal_df_unif_1.nlargest(self.size_causal_df, 'y_pred_proba')
+                    elif i > 1 and self.size_causal_df > 1:
+                        if roc_0 < roc_scores[i-1]:
+                            count = count + 1
+                            red_size = self.size_causal_df - count
+                            if red_size < 1:
+                                red_size = 1
+                            causal_df_unif_1 = causal_df_unif_1.nlargest(red_size, 'y_pred_proba')
                         else:
-                            if roc_0 < roc_scores[i-1]:
-                                count = count + 1
-                                red_size = self.size_causal_df - count
-                                if red_size <= 1:
-                                    red_size = 1
-                                    causal_df_unif_1 = causal_df_unif_1.nlargest(red_size, 'y_pred_proba')
-                                else:
-                                    causal_df_unif_1 = causal_df_unif_1.nlargest(red_size, 'y_pred_proba')
-                            else:
-                                causal_df_unif_1 = causal_df_unif_1.nlargest(self.size_causal_df, 'y_pred_proba')
-                                # red_size = self.size_causal_df + 1
-                                # causal_df_unif_1 = causal_df_unif_1.nlargest(red_size, 'y_pred_proba')
+                            causal_df_unif_1 = causal_df_unif_1.nlargest(self.size_causal_df, 'y_pred_proba')
+                            # red_size = self.size_causal_df + 1
+                            # causal_df_unif_1 = causal_df_unif_1.nlargest(red_size, 'y_pred_proba')
 
                 # index reset
                 causal_df_unif_1.reset_index(drop=True, inplace=True)
@@ -477,11 +482,17 @@ class IterativeTD2C():
                     stop_1 = stop_1 + 1
                     if stop_1 == 2:
                         print()
+                        print(f'Most relevant Edges that will be added in the next iteration:')
+                        print()
+                        print(causal_df_unif_1)
+                        print()
                         print(f'No new edges to add in the next iteration')
                         print()
                         break
                 else:
                     stop_1 = 0
+
+                iter_df = causal_df_unif_1
 
                 # save the causal_df as a pkl file alone
                 output_folder = self.results_folder + f'metrics/estimate_{i}/'
@@ -492,8 +503,6 @@ class IterativeTD2C():
 
                 with open(os.path.join(output_folder, f'causal_df_top_{self.k}_td2c_R_N5_unified.pkl'), 'wb') as f:
                     pickle.dump(causal_df_unif_1, f)
-
-                iter_df = causal_df_unif_1
 
                 print()
                 print(f'Most relevant Edges that will be added in the next iteration:')
