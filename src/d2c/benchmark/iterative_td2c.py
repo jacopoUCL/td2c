@@ -88,6 +88,7 @@ class IterativeTD2C():
         iter_df = pd.DataFrame
         stop_1 = 0
         stop_2 = 0
+        count = 0
         roc_scores = []
 
         print()
@@ -105,9 +106,13 @@ class IterativeTD2C():
             print(f'Using the top {self.COUPLES_TO_CONSIDER_PER_DAG} couples for each DAG')
             print(f'This iteration will take approximately {4*self.it} minutes')
             print()
-        elif self.COUPLES_TO_CONSIDER_PER_DAG != -1 and self.size_causal_df == 1:
+        elif self.COUPLES_TO_CONSIDER_PER_DAG != -1 and self.size_causal_df < 5:
             print(f'Using the top {self.COUPLES_TO_CONSIDER_PER_DAG} couples for each DAG')
             print(f'This iteration will take approximately {3.5*self.it} minutes')
+            print()
+        elif self.COUPLES_TO_CONSIDER_PER_DAG != -1 and self.size_causal_df > 5:
+            print(f'Using the top {self.COUPLES_TO_CONSIDER_PER_DAG} couples for each DAG')
+            print(f'This iteration will take approximately {4.5*self.it} minutes')
             print()
 
         print("Do you want to continue with the rest of the function? (y/n): ")
@@ -391,7 +396,7 @@ class IterativeTD2C():
                 print(f'ROC-AUC score: {roc}')
                 print()
                 roc_scores.append(roc)
-                roc_0 = roc
+                roc_0 = roc 
 
                 # Reshape causal_df #################################################################################
                 # keep only rows for top k y_pred_proba
@@ -446,9 +451,23 @@ class IterativeTD2C():
                         causal_df_unif_1 = causal_df_unif_1.nlargest(10, 'y_pred_proba')
 
                 else:
-                    # if n row > 5, keep only the top 5 rows with highest y_pred_proba
+                    # if n row > n, keep only the top n rows with highest y_pred_proba
                     if causal_df_unif_1.shape[0] > 1:
-                        causal_df_unif_1 = causal_df_unif_1.nlargest(self.size_causal_df, 'y_pred_proba')
+                        if i == 1 or self.size_causal_df == 1:
+                            causal_df_unif_1 = causal_df_unif_1.nlargest(self.size_causal_df, 'y_pred_proba')
+                        else:
+                            if roc_0 < roc_scores[i-1]:
+                                count = count + 1
+                                red_size = self.size_causal_df - count
+                                if red_size <= 1:
+                                    red_size = 1
+                                    causal_df_unif_1 = causal_df_unif_1.nlargest(red_size, 'y_pred_proba')
+                                else:
+                                    causal_df_unif_1 = causal_df_unif_1.nlargest(red_size, 'y_pred_proba')
+                            else:
+                                causal_df_unif_1 = causal_df_unif_1.nlargest(self.size_causal_df, 'y_pred_proba')
+                                # red_size = self.size_causal_df + 1
+                                # causal_df_unif_1 = causal_df_unif_1.nlargest(red_size, 'y_pred_proba')
 
                 # index reset
                 causal_df_unif_1.reset_index(drop=True, inplace=True)
