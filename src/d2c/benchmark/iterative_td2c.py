@@ -130,7 +130,7 @@ class IterativeTD2C():
         if self.results_folder == None:
             print('Please provide the correct results_folder')
             return
-        if self.COUPLES_TO_CONSIDER_PER_DAG < 5:
+        if self.COUPLES_TO_CONSIDER_PER_DAG < 5 and self.COUPLES_TO_CONSIDER_PER_DAG != -1:
             print('Please provide a value greater than 5 for COUPLES_TO_CONSIDER_PER_DAG')
             return
         if self.maxlags < 1:
