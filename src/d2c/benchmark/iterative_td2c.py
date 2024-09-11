@@ -88,8 +88,8 @@ class IterativeTD2C():
         iter_df = pd.DataFrame
         stop_1 = 0
         stop_2 = 0
-        count = 0
         roc_scores = []
+        causaldataframes = {}
 
         print()
         print(f'Iterative TD2C - Method: {self.method} - Max iterations: {self.it} - Variables to keep per DAG: {self.k} - Top Variables: {self.top_vars} - Treshold: {self.treshold} - Size of Causal DF: {self.size_causal_df}')
@@ -457,28 +457,39 @@ class IterativeTD2C():
                     # if causal_df_unif_1.shape[0] > 1:
                     causal_df_unif_1 = causal_df_unif_1.nlargest(10, 'y_pred_proba')
 
-                else:
-                    # if n row > n, keep only the top n rows with highest y_pred_proba
-                    # if causal_df_unif_1.shape[0] > 1:
+                elif self.treshold == False:
+                    # Initialize `previous_size` as the starting size for each iteration.
                     if i == 1 or self.size_causal_df == 1:
-                        causal_df_unif_1 = causal_df_unif_1.nlargest(self.size_causal_df, 'y_pred_proba')
+                        previous_size = self.size_causal_df
+                        causal_df_unif_1 = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
                     elif i > 1 and self.size_causal_df > 1:
-                        if roc_0 < roc_scores[i-1]:
-                            count = count + 1
-                            red_size = self.size_causal_df - count
-                            if red_size < 1:
-                                red_size = 1
-                            causal_df_unif_1 = causal_df_unif_1.nlargest(red_size, 'y_pred_proba')
-                        else:
-                            causal_df_unif_1 = causal_df_unif_1.nlargest(self.size_causal_df, 'y_pred_proba')
-                            # red_size = self.size_causal_df + 1
-                            # causal_df_unif_1 = causal_df_unif_1.nlargest(red_size, 'y_pred_proba')
+                        # Adjust size based on the comparison of ROC scores
+                        if roc_scores[i-1] < roc_scores[i-2]:
+                            previous_size = previous_size - 1
+                        elif roc_scores[i-1] >= roc_scores[i-2]:
+                            previous_size = previous_size # + 1
+
+                        # Ensure size boundaries
+                        if previous_size < 1:
+                            previous_size = 1
+                        elif previous_size > 10:
+                            previous_size = 10
+
+                        # Select the top rows according to the adjusted size
+                        causal_df_unif_1 = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
+                
+                # Check if causal_df_unif_1 is equal to any previous one and augment the size untill it is not
+                if i > 1:
+                    while any(causal_df_unif_1.equals(causaldataframes.get(j)) for j in range(i)):
+                        causal_df_unif_1 = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
+                        previous_size += 1
+
 
                 # index reset
                 causal_df_unif_1.reset_index(drop=True, inplace=True)
 
                 # STOPPING CRITERIA 1: if causal df is the same as the previous one for 2 consecutive iterations
-                if causal_df_unif_1.equals(iter_df):
+                if causal_df_unif_1.equals(causaldataframes.get(i-1)):
                     stop_1 = stop_1 + 1
                     if stop_1 == 2:
                         print()
@@ -492,7 +503,7 @@ class IterativeTD2C():
                 else:
                     stop_1 = 0
 
-                iter_df = causal_df_unif_1
+                causaldataframes[i] = causal_df_unif_1
 
                 # save the causal_df as a pkl file alone
                 output_folder = self.results_folder + f'metrics/estimate_{i}/'
