@@ -21,11 +21,59 @@ class IterativeTD2C():
     """
     This class contains the function iterative_td2c() that performs the iterative TD2C method and the functions plot_results() 
     and df_scores() to plot the results and save the ROC-AUC scores in a csv file.
+    
+    This function requires data already generated and stored in the data folder
+
+    Methods:
+        'ts' = for classic TD2C
+        'original' = for original D2C
+        'ts_rank' = for TD2C with ranking
+        'ts_rank_2' = for TD2C with ranking 2
+        'ts_rank_3' = for TD2C with ranking 3
+        'ts_rank_4' = for TD2C with ranking 4
+        'ts_rank_5' = for TD2C with ranking 5
+        'ts_rank_6' = for TD2C with ranking 6
+        'ts_rank_7' = for TD2C with ranking 7
+        'ts_past' = for TD2C with past and future nodes
+        'ts_rank_no_count' = for TD2C with ranking with no contemporaneous nodes
+
+    Parameters:
+    k is the number of top variables to keep at each iteration for each DAG (keep = 1 if treshold = False)
+    it is the limit for the number of iterations to perform
+    top_vars is the number of top variables to keep in case of TD2C Ranking
+    treshold is a boolean to determine if we want to keep in the causal df the variables with a pred.proba higher than treshold_value
+    treshold_value is the value to keep the variables in the causal df
+    size_causal_df is the number of variables to keep in the causal_df in case of treshold = False
+    data_folder is the folder where the data is stored
+    descr_folder is the folder where the descriptors are stored
+    results_folder is the folder where the results are stored
+    COUPLES_TO_CONSIDER_PER_DAG is the number of couples to consider for each DAG
+    maxlags is the maximum number of lags to consider
+    SEED is the seed for the random state
+    MB_SIZE is the size of the Markov Blanket
+    max_neighborhood_size_filter is the maximum neighborhood size to consider
+    noise_std_filter is the noise standard deviation to consider
+    N_JOBS is the number of jobs to run in parallel
+    adaptive determines if the size of the causal_df is adjusted based on the comparison of ROC scores
+        adaptive = "Adding" to add 1 to the size of the causal_df if the ROC score is lower than the previous one
+        adaptive = "Subtracting" to subtract 1 to the size of the causal_df if the ROC score is lower than the previous one
+        adaptive = "Balancing" to add 1 to the size of the causal_df if the ROC score is lower than the previous one and subtract 1 if the ROC score is higher than the previous one
+        adaptive = False to keep the size of the causal_df constant
+
+    Stopping Criteria:
+    1. if average ROC-AUC score does not improve or is the same as the previous iteration for 3 consecutive iterations
+    2. if the first iteration has an average ROC-AUC score lower than 0.5
+    3. if the average ROC-AUC score is more than 0.2 points lower than the first iteration
+    4. if causal df is the same as the previous one for 3 consecutive iterations
+
+    Output:
+    1. Plot of average ROC-AUC scores (saved in results folder as pdf file)
+    2. Average ROC-AUC scores for each iteration (saved in results folder as csv file)
     """
 
     def __init__(self, method = 'ts', k = 1, it = 6, top_vars = 3, treshold = False, N_JOBS = 50, noise_std_filter = 0.01,
-                 treshold_value = 0.9, size_causal_df = 5, COUPLES_TO_CONSIDER_PER_DAG = -1,
-                 maxlags = 5, SEED = 42, MB_SIZE = 2, max_neighborhood_size_filter = 2,
+                 treshold_value = 0.9, size_causal_df = 3, COUPLES_TO_CONSIDER_PER_DAG = -1,
+                 maxlags = 5, SEED = 42, MB_SIZE = 2, max_neighborhood_size_filter = 2, adaptive = False,
                  data_folder = 'home/data/', descr_folder = 'home/descr/', results_folder = 'home/results/'):
         
         self.method = method
@@ -45,51 +93,71 @@ class IterativeTD2C():
         self.max_neighborhood_size_filter = max_neighborhood_size_filter
         self.noise_std_filter = noise_std_filter
         self.N_JOBS = N_JOBS
+        self.adaptive = adaptive
 
-    def iterative_td2c(self):
-        """
-        # This function requires data already generated and stored in the data folder
+    def start(self):
+        # verify parameters
+        if self.method == None or self.k == None or self.it == None or self.top_vars == None or self.treshold == None or self.treshold_value == None or self.size_causal_df == None or self.data_folder == None or self.descr_folder == None or self.results_folder == None or self.COUPLES_TO_CONSIDER_PER_DAG == None or self.maxlags == None or self.SEED == None or self.MB_SIZE == None or self.max_neighborhood_size_filter == None or self.noise_std_filter == None or self.N_JOBS == None or self.adaptive == None:
+            print('Please provide the correct parameters')
+            return
+        if self.method not in ['ts', 'original', 'ts_rank', 'ts_rank_2', 'ts_rank_3', 'ts_rank_4', 'ts_rank_5', 'ts_rank_6', 'ts_rank_7', 'ts_past', 'ts_rank_no_count']:
+            print('Please provide the correct method')
+            return
+        if self.k < 1:
+            print('Please provide a value greater than 0 for k')
+            return
+        if self.it < 1:
+            print('Please provide a value greater than 0 for it')
+            return
+        if self.top_vars < 1:
+            print('Please provide a value greater than 0 for top_vars')
+            return
+        if self.treshold not in [True, False]:
+            print('Please provide a boolean value for treshold')
+            return
+        if self.treshold == True and self.treshold_value < 0.5:
+            print('Please provide a value greater than 0.5 for treshold_value')
+            return
+        if self.size_causal_df < 1:
+            print('Please provide a value greater than 0 for size_causal_df')
+            return
+        if self.data_folder == None:
+            print('Please provide the correct data_folder')
+            return
+        if self.descr_folder == None:
+            print('Please provide the correct descr_folder')
+            return
+        if self.results_folder == None:
+            print('Please provide the correct results_folder')
+            return
+        if self.COUPLES_TO_CONSIDER_PER_DAG < 5:
+            print('Please provide a value greater than 5 for COUPLES_TO_CONSIDER_PER_DAG')
+            return
+        if self.maxlags < 1:
+            print('Please provide a value greater than 0 for maxlags')
+            return
+        if self.MB_SIZE < 1:
+            print('Please provide a value greater than 0 for MB_SIZE')
+            return
+        if self.max_neighborhood_size_filter < 1:
+            print('Please provide a value greater than 0 for max_neighborhood_size_filter')
+            return
+        if self.noise_std_filter < 0:
+            print('Please provide a value greater than 0 for noise_std_filter')
+            return
+        if self.N_JOBS < 1:
+            print('Please provide a value greater than 0 for N_JOBS')
+            return
+        if self.adaptive not in ['Adding', 'Subtracting', 'Balancing', False]:
+            print('Please provide the correct value for adaptive')
+            return
+        if self.adaptive == 'Adding' and self.size_causal_df  > 5:
+            print('Please provide a value less than 5 for size_causal_df if adaptive is set to Adding')
+            return
+        if self.adaptive == 'Subtracting' and self.size_causal_df  < 3:
+            print('Please provide a value greater than 3 for size_causal_df if adaptive is set to Subtracting')
+            return
 
-        # Methods:
-            # 'ts' = for classic TD2C
-            # 'original' = for original D2C
-            # 'ts_rank' = for TD2C with ranking
-            # 'ts_rank_2' = for TD2C with ranking 2
-            # 'ts_rank_3' = for TD2C with ranking 3
-            # 'ts_rank_4' = for TD2C with ranking 4
-            # 'ts_rank_5' = for TD2C with ranking 5
-            # 'ts_rank_6' = for TD2C with ranking 6
-            # 'ts_rank_7' = for TD2C with ranking 7
-            # 'ts_past' = for TD2C with past and future nodes
-            # 'ts_rank_no_count' = for TD2C with ranking with no contemporaneous nodes
-
-        Parameters:
-        # k is the number of top variables to keep at each iteration for each DAG (keep = 1 if treshold = False)
-        # it is the limit for the number of iterations to perform
-        # top_vars is the number of top variables to keep in case of TD2C Ranking
-        # treshold is a boolean to determine if we want to keep in the causal df the variables with a pred.proba higher than treshold_value
-        # treshold_value is the value to keep the variables in the causal df
-        # size_causal_df is the number of variables to keep in the causal_df in case of treshold = False
-        # data_folder is the folder where the data is stored
-        # descr_folder is the folder where the descriptors are stored
-        # results_folder is the folder where the results are stored
-
-        Stopping Criteria:
-        1. if average ROC-AUC score does not improve or is the same as the previous iteration for 3 consecutive iterations
-        2. if the first iteration has an average ROC-AUC score lower than 0.5
-        3. if the average ROC-AUC score is more than 0.2 points lower than the first iteration
-        4. if causal df is the same as the previous one for 3 consecutive iterations
-
-        Output:
-        1. Plot of average ROC-AUC scores (saved in results folder as pdf file)
-        2. Average ROC-AUC scores for each iteration (saved in results folder as csv file)
-        """
-        
-        iter_df = pd.DataFrame
-        stop_1 = 0
-        stop_2 = 0
-        roc_scores = []
-        causaldataframes = {}
 
         print()
         print(f'Iterative TD2C - Method: {self.method} - Max iterations: {self.it} - Variables to keep per DAG: {self.k} - Top Variables: {self.top_vars} - Treshold: {self.treshold} - Size of Causal DF: {self.size_causal_df}')
@@ -117,15 +185,34 @@ class IterativeTD2C():
 
         print("Do you want to continue with the rest of the function? (y/n): ")
 
-        response = input("Do you want to continue with the rest of the function? (y/n): ").strip().lower()
+        if self.it < 6:
+            print()
+            print("WARNING: The number of iterations is less than 6. The results might not be accurate.")
+            response = input("Do you want to continue with the rest of the function? (y/n): ").strip().lower()
+            print()
+        else:
+            response = input("Do you want to continue with the rest of the function? (y/n): ").strip().lower()
+            print()
+
+        return response
+
+    def iterative_td2c(self, response):
 
         if response in ['yes', 'y', 'Yes', 'Y']:
             print()
             print("Ok! Let's start the iteration.")
             print()
 
+            # stop_1 = 0
+            stop_2 = 0
+            roc_scores = []
+            causal_df_unified = []
+            roc_0 = 0
+            
+            np.random.seed(self.SEED)
+
             # Estimation For Cycle
-            for i in range(1,self.it+1):
+            for i in range(0,self.it+1):
 
                 print()
                 print(f'----------------------------  Estimation {i}  ----------------------------')
@@ -169,7 +256,7 @@ class IterativeTD2C():
                     dataloader.from_pickle(input_folder + file)
 
                     # First iteration
-                    if i  == 1:
+                    if i  ==  0:
                         d2c = D2C(
                             observations=dataloader.get_observations(),
                             dags=dataloader.get_dags(),
@@ -187,7 +274,7 @@ class IterativeTD2C():
                             top_vars=self.top_vars
                         )
 
-                    # i > 1 iterations
+                    # i > 0 iterations
                     else:
                         d2c = D2C(
                             observations=dataloader.get_observations(),
@@ -204,7 +291,7 @@ class IterativeTD2C():
                             cmi='original',
                             mb_estimator= 'iterative',
                             top_vars=self.top_vars,
-                            causal_df=iter_df
+                            causal_df=causal_df_unified[i-1]
                         )
 
                     d2c.initialize()  # Initializes the D2C object
@@ -368,22 +455,20 @@ class IterativeTD2C():
 
                 # STOPPING CRITERIA 2: Using ROC-AUC score
                 roc = pd.DataFrame(TD2C_1_rocs_process).mean().mean()
+                roc_scores.append(roc)
+            
+                print()
+                print(f'ROC-AUC score: {roc}')
+                print()
 
-                if i == 1:
-                    if roc > 0.5:
-                        roc_first = roc
-                    else:
-                        print()
-                        print(f'ROC-AUC score: {roc}')
-                        print()
+                if i == 0:
+                    if roc < 0.5:
                         print('ROC-AUC is too low, let\'s stop here.')
                         break
-                elif i > 1:
+                elif i > 0:
                     if roc <= roc_0:
                         stop_2 = stop_2 + 1
-                        if stop_2 == 3:
-                            print()
-                            print(f'ROC-AUC score: {roc}')
+                        if stop_2 == 5:
                             print()
                             print('Estimations are not improving, let\'s stop here.')
                             print()
@@ -391,19 +476,15 @@ class IterativeTD2C():
                     else:
                         stop_2 = 0
                     
-                    if roc <= roc_first-0.2:
+                    if roc <= roc_0 - 0.1:
                         print()
                         print(f'ROC-AUC score: {roc}')
                         print()
                         print('Estimations are not improving, let\'s stop here.')
                         print()
                         break
-                
-                print()
-                print(f'ROC-AUC score: {roc}')
-                print()
-                roc_scores.append(roc)
-                roc_0 = roc 
+
+                roc_0 = roc
 
                 # Reshape causal_df #################################################################################
                 # keep only rows for top k y_pred_proba
@@ -454,56 +535,122 @@ class IterativeTD2C():
                 if self.treshold == True:
                     # drop rows with y_pred_proba < 0.7 (not necessary given the next step)
                     causal_df_unif_1 = causal_df_unif_1[causal_df_unif_1['y_pred_proba'] >= self.treshold_value]
-                    # if causal_df_unif_1.shape[0] > 1:
-                    causal_df_unif_1 = causal_df_unif_1.nlargest(10, 'y_pred_proba')
+                    if causal_df_unif_1.shape[0] > 0:
+                        causal_df_unif_1 = causal_df_unif_1.nlargest(10, 'y_pred_proba')
 
-                elif self.treshold == False:
-                    # Initialize `previous_size` as the starting size for each iteration.
-                    if i == 1 or self.size_causal_df == 1:
-                        previous_size = self.size_causal_df
-                        causal_df_unif_1 = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                    elif i > 1 and self.size_causal_df > 1:
-                        # Adjust size based on the comparison of ROC scores
-                        if roc_scores[i-1] < roc_scores[i-2]:
-                            previous_size = previous_size - 1
-                        elif roc_scores[i-1] >= roc_scores[i-2]:
-                            previous_size = previous_size # + 1
-
-                        # Ensure size boundaries
-                        if previous_size < 1:
-                            previous_size = 1
-                        elif previous_size > 10:
-                            previous_size = 10
-
-                        # Select the top rows according to the adjusted size
-                        causal_df_unif_1 = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                
-                # Check if causal_df_unif_1 is equal to any previous one and augment the size untill it is not
-                if i > 1:
-                    while any(causal_df_unif_1.equals(causaldataframes.get(j)) for j in range(i)):
-                        causal_df_unif_1 = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                        previous_size += 1
-
-
-                # index reset
-                causal_df_unif_1.reset_index(drop=True, inplace=True)
-
-                # STOPPING CRITERIA 1: if causal df is the same as the previous one for 2 consecutive iterations
-                if causal_df_unif_1.equals(causaldataframes.get(i-1)):
-                    stop_1 = stop_1 + 1
-                    if stop_1 == 2:
-                        print()
-                        print(f'Most relevant Edges that will be added in the next iteration:')
-                        print()
-                        print(causal_df_unif_1)
-                        print()
-                        print(f'No new edges to add in the next iteration')
-                        print()
-                        break
                 else:
-                    stop_1 = 0
+                    if self.adaptive == "Adding":
+                        # Initialize `previous_size` as the starting size for each iteration.
+                        if i == 0:
+                            previous_size = self.size_causal_df
+                            causal_df_unif_1 = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
+                        else:
+                            # Adjust size based on the comparison of ROC scores
+                            if roc_scores[i] < roc_scores[i-1]:
+                                previous_size = previous_size + 1
+                            # elif roc_scores[i] >= roc_scores[i-1]:
+                            #     previous_size = previous_size # + 1
 
-                causaldataframes[i] = causal_df_unif_1
+                            # Ensure size boundaries
+                            previous_size = max(1, min(previous_size, 10))
+
+                            # Select the top rows according to the adjusted size
+                            causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
+
+                            # index reset
+                            causal_df_unif_provv.reset_index(drop=True, inplace=True)
+
+                            # check if causal_df_unif_1 is equal to any previous element in causal_df_unified list of dataframes and add 1 to its size 
+                            # if it is until it is different
+                            while any(causal_df_unif_provv.equals(df) for df in causal_df_unified):
+                                previous_size += 1
+                                causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
+                                causal_df_unif_provv.reset_index(drop=True, inplace=True)
+
+                            causal_df_unif_1 = causal_df_unif_provv
+                    elif self.adaptive == "Subtracting":
+                        # Initialize `previous_size` as the starting size for each iteration.
+                        if i == 0:
+                            previous_size = self.size_causal_df
+                            causal_df_unif_1 = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
+                        else:
+                            # Adjust size based on the comparison of ROC scores
+                            if roc_scores[i] < roc_scores[i-1]:
+                                previous_size = previous_size - 1
+                            # elif roc_scores[i] >= roc_scores[i-1]:
+                            #     previous_size = previous_size # + 1
+
+                            # Ensure size boundaries
+                            previous_size = max(1, min(previous_size, 15))
+
+                            # Select the top rows according to the adjusted size
+                            causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
+
+                            # index reset
+                            causal_df_unif_provv.reset_index(drop=True, inplace=True)
+
+                            # check if causal_df_unif_1 is equal to any previous element in causal_df_unified list of dataframes and add 1 to its size 
+                            # if it is until it is different
+                            while any(causal_df_unif_provv.equals(df) for df in causal_df_unified):
+                                previous_size += 1
+                                causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
+                                causal_df_unif_provv.reset_index(drop=True, inplace=True)
+
+                            causal_df_unif_1 = causal_df_unif_provv
+                    elif self.adaptive == "Balancing":
+                        # Initialize `previous_size` as the starting size for each iteration.
+                        if i == 0: # 2
+                            previous_size = self.size_causal_df
+                            causal_df_unif_1 = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
+                        else:
+                            # if i is odd
+                            if i % 2 != 0:
+                                if roc_scores[i] < roc_scores[i-1]:
+                                    previous_size = previous_size + 1
+                            elif i % 2 == 0:
+                                # Adjust size based on the comparison of ROC scores
+                                if roc_scores[i] < roc_scores[i-1]:
+                                    previous_size = previous_size - 1
+
+                            # Ensure size boundaries
+                            previous_size = max(1, min(previous_size, 10))
+
+                            # Select the top rows according to the adjusted size
+                            causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
+
+                            # index reset
+                            causal_df_unif_provv.reset_index(drop=True, inplace=True)
+
+                            # check if causal_df_unif_1 is equal to any previous element in causal_df_unified list of dataframes and add 1 to its size 
+                            # if it is until it is different
+                            while any(causal_df_unif_provv.equals(df) for df in causal_df_unified):
+                                previous_size += 1
+                                causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
+                                causal_df_unif_provv.reset_index(drop=True, inplace=True)
+
+                            causal_df_unif_1 = causal_df_unif_provv
+                    elif self.adaptive == False:
+                        causal_df_unif_1 = causal_df_unif_1.nlargest(self.size_causal_df, 'y_pred_proba')
+                        causal_df_unif_1.reset_index(drop=True, inplace=True)
+
+                # add to list of results
+                causal_df_unified.append(causal_df_unif_1)
+
+                # # STOPPING CRITERIA 1: if causal df is the same as the previous one for 2 consecutive iterations
+                # if causal_df_unif_1.equals(causaldataframes.get(i-1)):
+                #     stop_1 = stop_1 + 1
+                #     if stop_1 == 2:
+                #         roc_scores.append(roc)
+                #         print()
+                #         print(f'Most relevant Edges that will be added in the next iteration:')
+                #         print()
+                #         print(causal_df_unif_1)
+                #         print()
+                #         print(f'No new edges to add in the next iteration')
+                #         print()
+                #         break
+                # else:
+                #     stop_1 = 0
 
                 # save the causal_df as a pkl file alone
                 output_folder = self.results_folder + f'metrics/estimate_{i}/'
@@ -514,17 +661,21 @@ class IterativeTD2C():
 
                 with open(os.path.join(output_folder, f'causal_df_top_{self.k}_td2c_R_N5_unified.pkl'), 'wb') as f:
                     pickle.dump(causal_df_unif_1, f)
-
+                
+                
                 print()
                 print(f'Most relevant Edges that will be added in the next iteration:')
                 print(causal_df_unif_1)
                 print()
         
             return roc_scores
-
-        else:
+        elif response in ['no', 'n', 'No', 'N']:
             print()
             print("Wise choice! Change the parameters and try again.")
+            return
+        else:
+            print()
+            print("ERROR:")
             return
          
     def plot_results(self, roc_scores):
@@ -537,22 +688,29 @@ class IterativeTD2C():
                 print()
 
                 plt.figure(figsize=(12, 6))
-                plt.plot(range(1, self.it+1), roc_scores, marker='o')
+                plt.plot(range(0, len(roc_scores)), roc_scores, marker='o', linestyle='-', label='ROC-AUC score')
+
+                # Calculate cumulative average
+                cumulative_avg = np.cumsum(roc_scores) / np.arange(1, len(roc_scores) + 1)
+                plt.plot(range(0, len(roc_scores)), cumulative_avg, marker='x', linestyle='--', label='Cumulative Average')
+
                 if self.treshold == False:
-                    plt.title(f'ROC-AUC scores for Iterative {self.method} ({self.it} iterations and {self.size_causal_df} top vars) with Regression MI (5 vars processes) ({self.COUPLES_TO_CONSIDER_PER_DAG} couples per dag)')
+                    plt.title(f'ROC-AUC scores for Iterative {self.method} ({len(roc_scores)} iterations and {self.size_causal_df} top vars) with Regression MI (5 vars processes) ({self.COUPLES_TO_CONSIDER_PER_DAG} couples per dag)')
                 else:
-                    plt.title(f'ROC-AUC scores for Iterative {self.method} ({self.it} iterations and {self.k} top vars) with Regression MI (5 vars processes) ({self.COUPLES_TO_CONSIDER_PER_DAG} couples per dag)')
+                    plt.title(f'ROC-AUC scores for Iterative {self.method} ({len(roc_scores)} iterations and {self.k} top vars) with Regression MI (5 vars processes) ({self.COUPLES_TO_CONSIDER_PER_DAG} couples per dag)')
+
                 plt.xlabel('Iterations')
                 plt.ylabel('ROC-AUC score')
                 plt.grid()
+                plt.legend()
                 plt.tight_layout()
 
                 # save the plot in folder
                 output_folder = '/home/jpalombarini/td2c/notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/plots/'
                 if self.treshold == False:
-                    plt.savefig(output_folder + f'ROC_AUC_scores_TD2C_{self.method}_{self.it}_iterations_{self.size_causal_df}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag.pdf')
+                    plt.savefig(output_folder + f'ROC_AUC_scores_TD2C_{self.method}_{len(roc_scores)}_iterations_{self.size_causal_df}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag.pdf')
                 else:
-                    plt.savefig(output_folder + f'ROC_AUC_scores_TD2C_{self.method}_{self.it}_iterations_{self.k}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag.pdf')
+                    plt.savefig(output_folder + f'ROC_AUC_scores_TD2C_{self.method}_{len(roc_scores)}_iterations_{self.k}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag.pdf')
                 plt.show()
 
     def df_scores(self, roc_scores):
@@ -564,12 +722,12 @@ class IterativeTD2C():
                 print('Resultant ROC-AUC scores:')
                 print()
                 roc_scores_df = pd.DataFrame(roc_scores, columns=['roc_score'])
-                roc_scores_df['iteration'] = range(1, self.it+1)
+                roc_scores_df['iteration'] = range(0, len(roc_scores))
 
                 # save the df in a csv file
                 output_folder = '/home/jpalombarini/td2c/notebooks/contributions/td2c_extesions/results/Regression/try_complete_function/metrics/'
                 if self.treshold == False:
-                    roc_scores_df.to_csv(output_folder + f'roc_scores_TD2C_{self.method}_{self.it}_iterations_{self.size_causal_df}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag.csv', index=False)
+                    roc_scores_df.to_csv(output_folder + f'roc_scores_TD2C_{self.method}_{len(roc_scores)}_iterations_{self.size_causal_df}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag.csv', index=False)
                 else:
-                    roc_scores_df.to_csv(output_folder + f'roc_scores_TD2C_{self.method}_{self.it}_iterations_{self.k}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag.csv', index=False)
+                    roc_scores_df.to_csv(output_folder + f'roc_scores_TD2C_{self.method}_{len(roc_scores)}_iterations_{self.k}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag.csv', index=False)
                 print(roc_scores_df)
