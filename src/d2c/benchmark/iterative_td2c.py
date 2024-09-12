@@ -223,9 +223,6 @@ class IterativeTD2C():
             return
 
     def start(self):
-        
-        # Check parameters:
-        self.param_check()
 
         # Description of the iteration
         print()
@@ -324,6 +321,9 @@ class IterativeTD2C():
                 print(f'This iteration will take approximately {4.5*self.it} minutes')
                 print()
 
+        return strategy
+
+    def response(self):
         # Start the iteration?
         if self.it < 6:
             if self.performative == True and self.performative_mode == "Tail":
@@ -342,15 +342,18 @@ class IterativeTD2C():
             response = input("Do you want to continue with the rest of the function? (y/n): ").strip().lower()
             print()
 
-        return response, strategy
-
-    def response(self):
-        response, strategy = self.start()
-        return response, strategy
+        return response
 
     def iterative_td2c(self):
 
-        response, strategy = self.response()
+        # Check parameters:
+        self.param_check()
+
+        # Give info one the iteration
+        self.start()
+
+        # Start the iteration?
+        response = self.response()
 
         if response in ['yes', 'y', 'Yes', 'Y']:
             print()
@@ -1105,7 +1108,7 @@ class IterativeTD2C():
         
     def plot_results(self, roc_scores):
             
-            response, strategy = self.response()
+            strategy = self.response()
 
             if self.treshold == None or self.method == None or self.k == None or self.it == None or self.size_causal_df == None or self.COUPLES_TO_CONSIDER_PER_DAG == None or roc_scores == None:
                 print('Please run iterative_td2c() function first')
@@ -1143,7 +1146,7 @@ class IterativeTD2C():
 
     def df_scores(self, roc_scores):
             
-            response, strategy = self.response()
+            strategy = self.response()
 
             if roc_scores == None or self.method == None or self.it == None or self.COUPLES_TO_CONSIDER_PER_DAG == None or self.size_causal_df == None:
                 print('Please run iterative_td2c() function first')
