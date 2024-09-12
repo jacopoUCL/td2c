@@ -15,8 +15,6 @@ from sklearn.metrics import roc_auc_score
 from d2c.descriptors_generation import D2C, DataLoader
 
 
-# ITERATIVE TD2C FUNCTION #################################################################################
-
 class IterativeTD2C():
     """
     This class contains the function iterative_td2c() that performs the iterative TD2C method and the functions plot_results() 
@@ -344,16 +342,7 @@ class IterativeTD2C():
 
         return response
 
-    def iterative_td2c(self):
-
-        # Check parameters:
-        self.param_check()
-
-        # Give info one the iteration
-        self.start()
-
-        # Start the iteration?
-        response = self.response()
+    def iterative_td2c(self, response):
 
         if response in ['yes', 'y', 'Yes', 'Y']:
             print()
@@ -809,12 +798,16 @@ class IterativeTD2C():
                             previous_size = self.size_causal_df
                             causal_df_unif_1 = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
                             ind.append(i)
+                            operation_reg.append(None)
                         elif i == 1:
                             if roc_scores[i] < roc_scores[i-1]:
                                     previous_size = previous_size + 1
                                     operation = "add"
                                     ind.append(i)
                                     operation_reg.append(operation)
+                            else:
+                                operation_reg.append(None)
+
                             previous_size = max(1, min(previous_size, 10))
 
                             # Select the top rows according to the adjusted size
@@ -832,23 +825,26 @@ class IterativeTD2C():
 
                             causal_df_unif_1 = causal_df_unif_provv
                         else:
-                            if roc_scores[i] < roc_scores[i-1]:
-                                last_operation = operation_reg.pop()
-                                ind.append(i)
-                                if last_operation == "add" and roc_scores[ind[-1]] < roc_scores[ind[-1] + 1]:
+                            if roc_scores[i] < roc_scores[i-1]: # 2 - 1
+                                ind.append(i) # ind = [0,1,2]
+                                last_operation_index = len(operation_reg) - operation_reg[::-1].index(operation)
+                                last_operation = operation_reg[last_operation_index]
+                                if last_operation == "add" and roc_scores[last_operation_index] < roc_scores[last_operation_index + 1]:
                                     previous_size -= 1
                                     operation = "sub"
-                                elif last_operation == "add" and roc_scores[ind[-1]] >= roc_scores[ind[-1] + 1]:
+                                elif last_operation == "add" and roc_scores[last_operation_index] >= roc_scores[last_operation_index + 1]:
                                     previous_size += 1
                                     operation = "add"
-                                elif last_operation == "sub" and roc_scores[ind[-1]] < roc_scores[ind[-1] + 1]:
+                                elif last_operation == "sub" and roc_scores[last_operation_index] < roc_scores[last_operation_index + 1]:
                                     previous_size += 1
                                     operation = "add"
-                                elif last_operation == "sub" and roc_scores[ind[-1]] >= roc_scores[ind[-1] + 1]:
+                                elif last_operation == "sub" and roc_scores[last_operation_index] >= roc_scores[last_operation_index + 1]:
                                     previous_size -= 1
                                     operation = "sub"
-                                operation_reg.append(operation)        
-                                
+                                operation_reg.append(operation)
+                            else:
+                                operation_reg.append(None)
+
                             # Ensure size boundaries
                             previous_size = max(1, min(previous_size, 15))
 
@@ -1094,7 +1090,7 @@ class IterativeTD2C():
                 print(causal_df_unif_1)
                 print()
         
-            return roc_scores
+            return roc_scores, causal_df_unified
         
         elif response in ['no', 'n', 'No', 'N']:
             print()
@@ -1105,10 +1101,69 @@ class IterativeTD2C():
             print()
             print("ERROR:")
             return
+
+    def final_iteration(self, causal_df_unified):
+
+        return final_roc, final_causal_df
+
+    def best_edges(self, roc_scores, causal_df_unified):
         
-    def plot_results(self, roc_scores):
-            
-            strategy = self.response()
+        # select best roc_scores as the ones > roc_score[0]
+        best_roc_scores = [roc for roc in roc_scores if roc > roc_scores[0]]
+        # select best causal_df_unified as the ones with roc in best_roc_scores
+        best_causal_df_unified = [causal_df_unified[i-1] for i, roc in enumerate(roc_scores) if roc in best_roc_scores]
+        # print best_roc_scores enumered by the iteration
+        
+        print()
+        print()
+        print("°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°")
+        print("                          FINAL RESULTS                            ")
+        print("°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°")
+
+        # select the edges that are present in at least 2 of the best causal_df_unified
+        if len(best_roc_scores) == 0:
+            best_edges = None
+            print('No improvements have been made.')
+            return
+        elif len(best_roc_scores) == 1:
+            best_edges = pd.concat(best_causal_df_unified, axis=0).reset_index(drop=True)
+            print('The only improvement happened with these edges: ')
+            print()
+            print(best_causal_df_unified[0])
+            return
+        else:
+            print()
+            print('Best ROC-AUC scores:')
+            print({i: roc for i, roc in enumerate(best_roc_scores)})
+            print()
+            best_edges = pd.concat(best_causal_df_unified, axis=0).reset_index(drop=True)
+            best_edges = best_edges[best_edges.duplicated(subset=['edge_source', 'edge_dest'], keep=False)]
+            # count the number of times each edge appears
+            best_edges = best_edges.groupby(['edge_source', 'edge_dest']).size().reset_index(name='counts')
+            # sort by counts
+            best_edges.sort_values(by='counts', ascending=False, inplace=True)
+            # reset index
+            best_edges.reset_index(drop=True, inplace=True)
+
+            # print best_edges
+            print()
+            print('Best Edges:')
+            print()
+            print(best_edges)
+            print()
+
+            # save the best_edges as a csv file
+            output_folder = self.results_folder + 'metrics/best_edges/'
+
+            # Create the folder if it doesn't exist
+            if not os.path.exists(output_folder):
+                os.makedirs(output_folder)
+
+            best_edges.to_csv(output_folder + f'best_edges_TD2C_{self.method}_{len(roc_scores)}_iterations_{self.k}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag.csv', index=False)
+
+            return best_edges
+
+    def plot_results(self, roc_scores, strategy):
 
             if self.treshold == None or self.method == None or self.k == None or self.it == None or self.size_causal_df == None or self.COUPLES_TO_CONSIDER_PER_DAG == None or roc_scores == None:
                 print('Please run iterative_td2c() function first')
@@ -1144,9 +1199,7 @@ class IterativeTD2C():
                     plt.savefig(output_folder + f'ROC_AUC_scores_TD2C_{self.method}_{len(roc_scores)}_iterations_{self.k}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag_{strategy}.pdf')
                 plt.show()
 
-    def df_scores(self, roc_scores):
-            
-            strategy = self.response()
+    def df_scores(self, roc_scores, strategy):
 
             if roc_scores == None or self.method == None or self.it == None or self.COUPLES_TO_CONSIDER_PER_DAG == None or self.size_causal_df == None:
                 print('Please run iterative_td2c() function first')
@@ -1165,3 +1218,53 @@ class IterativeTD2C():
                 else:
                     roc_scores_df.to_csv(output_folder + f'roc_scores_TD2C_{self.method}_{len(roc_scores)}_iterations_{self.k}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag_{strategy}.csv', index=False)
                 print(roc_scores_df)
+
+    def final_run(self, best_edges):
+
+        if best_edges == None:
+            print('Try with a different strategy or change the parameters.')
+        
+        elif len(best_edges)==1:
+            print()
+            print('No further improvements can be made. Try with a different strategy or change the parameters.')
+            print()
+            return 
+        else:
+            final_roc, final_causal_df = self.final_iteration()
+            print()
+            print('Most improved results:')
+            print()
+            print('ROC-AUC score:')
+            print(final_roc)
+            print()
+            print('Causal DataFrame:')
+            print(final_causal_df)
+
+        return final_roc
+
+
+    def main(self):
+
+        # Check parameters:
+        self.param_check()
+
+        # Give info one the iteration
+        strategy = self.start()
+
+        # Start the iteration?
+        response = self.response()
+
+        # run the iteration
+        roc_scores, causal_df_unified = self.iterative_td2c(response)
+
+        # plot results
+        self.plot_results(roc_scores, strategy)
+
+        # print roc scores
+        self.df_scores(roc_scores, strategy)
+
+        # best edges
+        best_edges = self.best_edges(causal_df_unified)
+
+        # final run
+        self.final_run(best_edges)
