@@ -221,13 +221,16 @@ class IterativeTD2C():
             return
 
     def start(self):
-
+        
+        # Check parameters:
         self.param_check()
 
+        # Description of the iteration
         print()
         print(f'Iterative TD2C - Method: {self.method} - Max iterations: {self.it} - Variables to keep per DAG: {self.k} - Top Variables: {self.top_vars} - Treshold: {self.treshold} - Size of Causal DF: {self.size_causal_df}')
         print()
 
+        # Description of the method used
         if self.performative == True and self.performative_mode == "More_Less":
             print('Method: Performative - Mode: More_Less')
             print()
@@ -250,8 +253,30 @@ class IterativeTD2C():
             print('Method: Arbitrary - Mode: Decreasing')
             print()
 
+        # Coutational time estimation
         if self.performative == True and self.performative_mode == "More_Less":
             print('This iteration could last forefer...')
+        elif self.performative == True and self.performative_mode == "Tail":
+            if self.COUPLES_TO_CONSIDER_PER_DAG == -1 and self.treshold == False:
+                print('Using all couples for each DAG')
+                print(f'This iteration will take approximately {8.5*self.it + 0.3*(8.5*self.it)} minutes')
+                print()
+            elif self.COUPLES_TO_CONSIDER_PER_DAG == -1 and self.treshold == True:
+                print(f'Using all couples for each DAG and a pred.proba higher than {self.treshold_value}')
+                print(f'This iteration will take approximately {10.5*self.it + 0.3*(10.5*self.it)} minutes')
+                print()
+            elif self.COUPLES_TO_CONSIDER_PER_DAG != -1 and self.size_causal_df == 5:
+                print(f'Using the top {self.COUPLES_TO_CONSIDER_PER_DAG} couples for each DAG')
+                print(f'This iteration will take approximately {4*self.it + 0.3*(4*self.it)} minutes')
+                print()
+            elif self.COUPLES_TO_CONSIDER_PER_DAG != -1 and self.size_causal_df < 5:
+                print(f'Using the top {self.COUPLES_TO_CONSIDER_PER_DAG} couples for each DAG')
+                print(f'This iteration will take approximately {3.5*self.it + 0.3*(3.5*self.it)} minutes')
+                print()
+            elif self.COUPLES_TO_CONSIDER_PER_DAG != -1 and self.size_causal_df > 5:
+                print(f'Using the top {self.COUPLES_TO_CONSIDER_PER_DAG} couples for each DAG')
+                print(f'This iteration will take approximately {4.5*self.it + 0.3*(4.5*self.it)} minutes')
+                print()
         else:
             if self.COUPLES_TO_CONSIDER_PER_DAG == -1 and self.treshold == False:
                 print('Using all couples for each DAG')
@@ -274,8 +299,7 @@ class IterativeTD2C():
                 print(f'This iteration will take approximately {4.5*self.it} minutes')
                 print()
 
-        print("Do you want to continue with the rest of the function? (y/n): ")
-
+        # Start the iteration?
         if self.it < 6:
             if self.performative == True and self.performative_mode == "Tail":
                 print()
@@ -812,7 +836,10 @@ class IterativeTD2C():
                                 if roc_scores.mean() < roc_scores[0]:
                                     # sets i to the highest roc score
                                     i = roc_scores.index(max(roc_scores))
-                                    self.it = i + self.it//3
+                                    if self.it < 3:
+                                        self.it = i + self.it
+                                    else:
+                                        self.it = i + self.it//3
                                     tail = tail + 1
                                     # set size to the highest roc score
                                     previous_size = causal_df_unified[i].shape[0] + 1
