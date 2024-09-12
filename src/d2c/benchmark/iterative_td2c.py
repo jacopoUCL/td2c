@@ -365,6 +365,8 @@ class IterativeTD2C():
             roc_0 = 0
             tail = 0
             operation = ""
+            operation_reg = []
+            ind = []
             if self.performative == True and self.performative_mode == "More_Less":
                 self.it = 1000
             elif self.performative == True and self.performative_mode == "More":
@@ -792,14 +794,24 @@ class IterativeTD2C():
                             causal_df_unif_1 = causal_df_unif_provv
 
                     elif self.adaptive_mode == "Balancing2":
-                        # Initialize `previous_size` as the starting size for each iteration.
+                        # Add 1 if the ROC is worse than the one before and:
+
+                        # The last operation was an addition, and the ROC improved.
+                        # The last operation was a subtraction, and the ROC decreased.
+                        # Remove 1 if the ROC is worse than the one before and:
+
+                        # The last operation was an addition, and the ROC decreased.
+                        # The last operation was a subtraction, and the ROC improved.
                         if i == 0:
                             previous_size = self.size_causal_df
                             causal_df_unif_1 = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
+                            ind.append(i)
                         elif i == 1:
                             if roc_scores[i] < roc_scores[i-1]:
                                     previous_size = previous_size + 1
                                     operation = "add"
+                                    ind.append(i)
+                                    operation_reg.append(operation)
                             previous_size = max(1, min(previous_size, 10))
 
                             # Select the top rows according to the adjusted size
@@ -817,15 +829,25 @@ class IterativeTD2C():
 
                             causal_df_unif_1 = causal_df_unif_provv
                         else:
-                            if roc_scores[i] < roc_scores[i-1] and operation == "add":
-                                previous_size = previous_size - 1
-                                operation = "subtract"
-                            elif roc_scores[i] < roc_scores[i-1] and operation == "subtract":
-                                previous_size = previous_size + 1
-                                operation = "add"
-
+                            if roc_scores[i] < roc_scores[i-1]:
+                                last_operation = operation_reg.pop()
+                                ind.append(i)
+                                if last_operation == "add" and roc_scores[ind[-1]] < roc_scores[ind[-1] + 1]:
+                                    previous_size -= 1
+                                    operation = "sub"
+                                elif last_operation == "add" and roc_scores[ind[-1]] >= roc_scores[ind[-1] + 1]:
+                                    previous_size += 1
+                                    operation = "add"
+                                elif last_operation == "sub" and roc_scores[ind[-1]] < roc_scores[ind[-1] + 1]:
+                                    previous_size += 1
+                                    operation = "add"
+                                elif last_operation == "sub" and roc_scores[ind[-1]] >= roc_scores[ind[-1] + 1]:
+                                    previous_size -= 1
+                                    operation = "sub"
+                                operation_reg.append(operation)        
+                                
                             # Ensure size boundaries
-                            previous_size = max(1, min(previous_size, 10))
+                            previous_size = max(1, min(previous_size, 15))
 
                             # Select the top rows according to the adjusted size
                             causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
@@ -842,7 +864,7 @@ class IterativeTD2C():
 
                             causal_df_unif_1 = causal_df_unif_provv
 
-                    elif self.adaptive_mode == "try":
+                    elif self.adaptive_mode == "try": # just to see if with same causal_df the roc score is the same, it is not because of the random forest
                         if i == 0:
                             previous_size = self.size_causal_df
                             causal_df_unif_1 = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
