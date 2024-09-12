@@ -304,7 +304,7 @@ class IterativeTD2C():
             if self.performative == True and self.performative_mode == "Tail":
                 print()
                 print('########################################################################################')
-                print("# WARNING: The number of iterations is less than 6. The results might not be accurate. #")
+                print("  WARNING: The number of iterations is less than 6. The results might not be accurate.  ")
                 print('########################################################################################')
                 print()
                 response = input("Do you want to continue with the rest of the function? (y/n): ").strip().lower()
@@ -334,7 +334,6 @@ class IterativeTD2C():
             causal_df_unified = []
             roc_0 = 0
             tail = 0
-            breaker = False
             if self.performative == True and self.performative_mode == "More_Less":
                 self.it = 1000
             elif self.performative == True and self.performative_mode == "More":
@@ -729,7 +728,7 @@ class IterativeTD2C():
 
                     elif self.adaptive_mode == "Balancing":
                         # Initialize `previous_size` as the starting size for each iteration.
-                        if i == 0: # 2
+                        if i == 0:
                             previous_size = self.size_causal_df
                             causal_df_unif_1 = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
                         else:
@@ -833,17 +832,17 @@ class IterativeTD2C():
                             causal_df_unif_1 = causal_df_unif_provv
                         else:
                             if tail == 0:
-                                if roc_scores.mean() < roc_scores[0]:
+                                mean_roc_score = sum(roc_scores) / len(roc_scores)
+                                if mean_roc_score < roc_scores[0]:
                                     # sets i to the highest roc score
-                                    i = roc_scores.index(max(roc_scores))
                                     if self.it < 3:
-                                        self.it = i + self.it
+                                        self.it = self.it + self.it
                                     else:
-                                        self.it = i + self.it//3
+                                        self.it = self.it + self.it//3
                                     tail = tail + 1
                                     # set size to the highest roc score
-                                    previous_size = causal_df_unified[i].shape[0] + 1
-                                    causal_df_unif_provv = causal_df_1.nlargest(self.size_causal_df, 'y_pred_proba')
+                                    previous_size = causal_df_unified[roc_scores.index(max(roc_scores))].shape[0] + 1
+                                    causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
 
                                     # check if causal_df_unif_1 is equal to any previous element in causal_df_unified list of dataframes and add 1 to its size
                                     # if it is until it is different
@@ -957,22 +956,24 @@ class IterativeTD2C():
                 with open(os.path.join(output_folder, f'causal_df_top_{self.k}_td2c_R_N5_unified.pkl'), 'wb') as f:
                     pickle.dump(causal_df_unif_1, f)
                 
-                
+                # print the resultant causal_df
                 print()
                 print(f'Most relevant Edges that will be added in the next iteration:')
                 print(causal_df_unif_1)
                 print()
         
             return roc_scores
+        
         elif response in ['no', 'n', 'No', 'N']:
             print()
             print("Wise choice! Change the parameters and try again.")
             return
+        
         else:
             print()
             print("ERROR:")
             return
-         
+        
     def plot_results(self, roc_scores):
             if self.treshold == None or self.method == None or self.k == None or self.it == None or self.size_causal_df == None or self.COUPLES_TO_CONSIDER_PER_DAG == None or roc_scores == None:
                 print('Please run iterative_td2c() function first')
