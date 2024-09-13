@@ -108,6 +108,8 @@ class IterativeTD2C():
         self.arbitrary = arbitrary
         self.arbitrary_mode = arbitrary_mode
 
+        np.random.seed(self.SEED)
+
     def param_check(self):
         # verify parameters
         if self.method == None or self.k == None or self.it == None or self.top_vars == None or self.treshold == None or self.treshold_value == None or self.size_causal_df == None or self.data_folder == None or self.descr_folder == None or self.results_folder == None or self.COUPLES_TO_CONSIDER_PER_DAG == None or self.maxlags == None or self.SEED == None or self.MB_SIZE == None or self.max_neighborhood_size_filter == None or self.noise_std_filter == None or self.N_JOBS == None or self.adaptive == None:
@@ -226,7 +228,7 @@ class IterativeTD2C():
         print()
         print(f'Iterative TD2C - Method: {self.method} - Max iterations: {self.it} - Variables to keep per DAG: {self.k} - Top Variables: {self.top_vars} - Treshold: {self.treshold} - Size of Causal DF: {self.size_causal_df}')
         print()
-
+    
         # Description of the method used
         if self.performative == True and self.performative_mode == "More_Less":
             print('Method: Performative - Mode: More_Less')
@@ -372,6 +374,7 @@ class IterativeTD2C():
 
                 np.random.seed(self.SEED)
                 warnings.filterwarnings("ignore", category=UndefinedMetricWarning)
+                warnings.filterwarnings("ignore", category=FutureWarning)
                 input_folder = self.data_folder
                 
                 output_folder = self.descr_folder + f'estimate_{i}/'
@@ -1112,9 +1115,6 @@ class IterativeTD2C():
         if best_edges.shape[0] > 10:
             best_edges = best_edges.nlargest(10, 'counts')
 
-        # make best_edges a dataframe
-        best_edges = pd.DataFrame(best_edges)
-
         causal_df_unified = best_edges
 
         # use causal_df_unified to run an ioterative TD2C with and Arbitrary Decreasing mode
@@ -1123,13 +1123,18 @@ class IterativeTD2C():
         stop_1 = 0
         stop_2 = 0
         roc_scores = []
-        causal_df_unified = []
         causal_df_mid = []
         roc_0 = 0
         np.random.seed(self.SEED)
         warnings.filterwarnings("ignore", category=UndefinedMetricWarning)
+        warnings.filterwarnings("ignore", category=FutureWarning)
 
         for i in range(best_edges.shape[0]):
+
+            print()
+            print(f'----------------------------  Estimation {i}  ----------------------------')
+            print()
+
             # Iterative TD2C ####################################################
             input_folder = self.data_folder
             output_folder = self.descr_folder + f'estimate_{i}/'        
@@ -1475,7 +1480,7 @@ class IterativeTD2C():
                     pickle.dump(causal_df_unif_1, f)
                 
                 # print the resultant causal_df
-                if i != self.it:
+                if i != best_edges.shape[0]:
                     print()
                     print(f'Most relevant Edges that will be added in the next iteration:')
                     print(causal_df_unif_1)
@@ -1489,8 +1494,8 @@ class IterativeTD2C():
 
                 # final_roc is the highest in the roc_scores
                 final_roc = max(roc_scores)
-                # final_causal_df is the one with the highest roc_score
-                final_causal_df = causal_df_unified[roc_scores.index(final_roc)-1]
+                # final_causal_df is the one before the one with the highest roc_score in causal_df_unified
+                final_causal_df = causal_df_unified[roc_scores.index(final_roc) - 1]
 
         return final_roc, final_causal_df
 
@@ -1499,8 +1504,10 @@ class IterativeTD2C():
         # select best roc_scores as the ones > roc_score[0]
         best_roc_scores = [roc for roc in roc_scores if roc > roc_scores[0]]
         # select best causal_df_unified as the ones with roc in best_roc_scores
-        best_causal_df_unified = [causal_df_unified[i-1] for i, roc in enumerate(roc_scores) if roc in best_roc_scores]
+        # best_causal_df_unified = [causal_df_unified[i-1] for i, roc in enumerate(roc_scores) if roc in best_roc_scores]
         # print best_roc_scores enumered by the iteration
+        best_causal_df_unified = [pd.DataFrame(causal_df_unified[i-1]) for i, roc in enumerate(roc_scores) if roc in best_roc_scores]
+
         
         print()
         print()
@@ -1514,7 +1521,6 @@ class IterativeTD2C():
             return None
         elif len(best_roc_scores) == 1:
             best_edges = pd.concat(best_causal_df_unified, axis=0).reset_index(drop=True)
-            best_edges = pd.DataFrame(best_edges)
             print('The only improvement happened with these edges: ')
             print(best_causal_df_unified[0])
             print()
@@ -1534,7 +1540,6 @@ class IterativeTD2C():
             # reset index
             best_edges.reset_index(drop=True, inplace=True)
             # make best_edges a DataFrame
-            best_edges = pd.DataFrame(best_edges)
 
             # print best_edges
             print()
@@ -1625,7 +1630,7 @@ class IterativeTD2C():
             return None, None
         else:
             print()
-            print('Final Iteration...')
+            print('Final Iteration using the Arbitrary method with Decreasing mode:')
             final_roc, final_causal_df = self.final_iteration(best_edges)
             print()
             print('Most improved results:')
@@ -1909,7 +1914,7 @@ class IterativeTD2C():
             plt.show()
 
             # save the plot in folder
-            otuput_folder = self.results_folder + 'plots/final_estimate/'
+            output_folder = self.results_folder + 'plots/final_estimate/'
             plt.savefig(output_folder + f'FINAL_ROC_AUC_scores_TD2C_{self.method}_iterations_{self.size_causal_df}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag_{strategy}.pdf')
 
             print()
@@ -1948,6 +1953,3 @@ class IterativeTD2C():
 
         # final estimate
         self.finale_estimate(final_causal_df, strategy)
-
-
-

@@ -568,16 +568,11 @@ class MarkovBlanketEstimator:
         if node - self.n_variables >= 0:
             mb.add(node - self.n_variables)
 
-        # Check if self.causal_df is a list and convert it to a DataFrame if necessary
-        if isinstance(self.causal_df, list):
-            self.causal_df = pd.DataFrame(self.causal_df)
-
         # Check if the node is in either 'edge_dest' or 'edge_source' columns
         if not ((self.causal_df['edge_dest'] == node).any() or (self.causal_df['edge_source'] == node).any()):
             # If node is not in either column, return mb as a sorted numpy array
-            return np.array(sorted(mb), dtype=int)
-
-        # Filter the DataFrame to include only rows where the node is in either 'edge_dest' or 'edge_source'
+            return np.array(sorted(mb), dtype=int) 
+        
         filtered_df = self.causal_df[(self.causal_df['edge_dest'] == node) | (self.causal_df['edge_source'] == node)]
 
         # Add both edge_dest and edge_source columns to the Markov Blanket in one go
@@ -586,6 +581,9 @@ class MarkovBlanketEstimator:
 
         # Convert Markov Blanket to a sorted numpy array for consistency
         return np.array(sorted(mb), dtype=int)
+
+        # Filter the DataFrame to include only rows where the node is in either 'edge_dest' or 'edge_source'
+        
 
 
         # def estimate_iterative(self, dataset, node):  # USING NESTED DICTIONARY, MAYBE FASTER
