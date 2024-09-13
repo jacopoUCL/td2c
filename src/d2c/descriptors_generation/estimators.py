@@ -2,6 +2,7 @@
 This module contains a MarkovBlanketEstimator and a MutualInformationEstimator. 
 """
 import numpy as np
+import pandas as pd
 
 from cachetools import cached, Cache
 from cachetools.keys import hashkey
@@ -566,6 +567,10 @@ class MarkovBlanketEstimator:
             mb.add(node + self.n_variables)
         if node - self.n_variables >= 0:
             mb.add(node - self.n_variables)
+
+        # Check if self.causal_df is a list and convert it to a DataFrame if necessary
+        if isinstance(self.causal_df, list):
+            self.causal_df = pd.DataFrame(self.causal_df)
 
         # Check if the node is in either 'edge_dest' or 'edge_source' columns
         if not ((self.causal_df['edge_dest'] == node).any() or (self.causal_df['edge_source'] == node).any()):

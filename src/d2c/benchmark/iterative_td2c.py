@@ -1109,9 +1109,11 @@ class IterativeTD2C():
 
     def final_iteration(self, best_edges):
 
-        # reduce best_edges to max 10 rows if it's bigger
         if best_edges.shape[0] > 10:
             best_edges = best_edges.nlargest(10, 'counts')
+
+        # make best_edges a dataframe
+        best_edges = pd.DataFrame(best_edges)
 
         causal_df_unified = best_edges
 
@@ -1508,11 +1510,11 @@ class IterativeTD2C():
 
         # select the edges that are present in at least 2 of the best causal_df_unified
         if len(best_roc_scores) == 0:
-            best_edges = None
             print('No improvements have been made.')
-            return best_edges
+            return None
         elif len(best_roc_scores) == 1:
             best_edges = pd.concat(best_causal_df_unified, axis=0).reset_index(drop=True)
+            best_edges = pd.DataFrame(best_edges)
             print('The only improvement happened with these edges: ')
             print(best_causal_df_unified[0])
             print()
@@ -1531,6 +1533,8 @@ class IterativeTD2C():
             best_edges.sort_values(by='counts', ascending=False, inplace=True)
             # reset index
             best_edges.reset_index(drop=True, inplace=True)
+            # make best_edges a DataFrame
+            best_edges = pd.DataFrame(best_edges)
 
             # print best_edges
             print()
@@ -1609,17 +1613,19 @@ class IterativeTD2C():
 
     def final_run(self, best_edges):
 
-        if best_edges == None:
+        if best_edges is None:
             print()
             print('Try with a different strategy or change the parameters.')
             return None, None
         
-        elif len(best_edges)==1:
+        elif best_edges.shape[0] == 1 or len(best_edges) == 1:
             print()
             print('No further improvements can be made. Try with a different strategy or change the parameters.')
             print()
             return None, None
         else:
+            print()
+            print('Final Iteration...')
             final_roc, final_causal_df = self.final_iteration(best_edges)
             print()
             print('Most improved results:')
@@ -1635,11 +1641,11 @@ class IterativeTD2C():
     def finale_estimate(self, final_causal_df, strategy):
 
         # which index of final_causal_df
-        if final_causal_df == None:
+        if final_causal_df is None:
             print()
             print('End of the process.')
             print()
-        elif final_causal_df == None:
+        elif final_causal_df is None:
             print()
             print('The estimate with highest ROC-AUC score possible, using the best edges possible, is the first one.')
             print()
@@ -1651,7 +1657,8 @@ class IterativeTD2C():
             print('The estimate with highest ROC-AUC score possible, using the best edges possible, is the following:')
             print()
 
-            causal_df_unified = final_causal_df
+            causal_df_unified = []
+            causal_df_unified.append(final_causal_df)
 
             # use causal_df_unified to run an ioterative TD2C with and Arbitrary Decreasing mode
 
@@ -1941,3 +1948,6 @@ class IterativeTD2C():
 
         # final estimate
         self.finale_estimate(final_causal_df, strategy)
+
+
+
