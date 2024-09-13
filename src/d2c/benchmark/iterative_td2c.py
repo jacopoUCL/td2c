@@ -229,52 +229,6 @@ class IterativeTD2C():
         print(f'Iterative TD2C - Method: {self.method} - Max iterations: {self.it} - Variables to keep per DAG: {self.k} - Top Variables: {self.top_vars} - Treshold: {self.treshold} - Size of Causal DF: {self.size_causal_df}')
         print()
     
-        # Description of the method used
-        if self.performative == True and self.performative_mode == "More_Less":
-            print('Method: Performative - Mode: More_Less')
-            print()
-            strategy = "Performative-More_Less"
-        elif self.performative == True and self.performative_mode == "More":
-            print('Method: Performative - Mode: More')
-            print()
-            strategy = "Performative-More"
-        elif self.performative == True and self.performative_mode == "Tail":
-            print('Method: Performative - Mode: Tail')
-            print()
-            strategy = "Performative-Tail"
-        elif self.adaptive == True and self.adaptive_mode == "Adding":
-            print('Method: Adaptive - Mode: Adding')
-            print()
-            strategy = "Adaptive-Adding"
-        elif self.adaptive == True and self.adaptive_mode == "Subtracting":
-            print('Method: Adaptive - Mode: Subtracting')
-            print()
-            strategy = "Adaptive-Subtracting"
-        elif self.adaptive == True and self.adaptive_mode == "Balancing1":
-            print('Method: Adaptive - Mode: Balancing1')
-            print()
-            strategy = "Adaptive-Balancing1"
-        elif self.adaptive == True and self.adaptive_mode == "Balancing2":
-            print('Method: Adaptive - Mode: Balancing2')
-            print()
-            strategy = "Adaptive-Balancing2"
-        elif self.arbitrary == True and self.arbitrary_mode == "Increasing":
-            print('Method: Arbitrary - Mode: Increasing')
-            print()
-            strategy = "Arbitrary-Increasing"
-        elif self.arbitrary == True and self.arbitrary_mode == "Decreasing":
-            print('Method: Arbitrary - Mode: Decreasing')
-            print()
-            strategy = "Arbitrary-Decreasing"
-        elif self.arbitrary == True and self.arbitrary_mode == "Common":
-            print('Method: Arbitrary - Mode: Common')
-            print()
-            strategy = "Arbitrary-Common"
-        else:
-            print('Method: Classic')
-            print()
-            strategy = "Classic"
-
         # Computational time estimation
         if self.performative == True and self.performative_mode == "More_Less":
             print('This iteration could last forefer...')
@@ -321,6 +275,56 @@ class IterativeTD2C():
                 print(f'This iteration will take approximately {4.5*self.it} minutes')
                 print()
 
+        return
+
+    def strategy(self):
+
+        # Description of the method used
+        if self.performative == True and self.performative_mode == "More_Less":
+            print('Method: Performative - Mode: More_Less')
+            print()
+            strategy = "Performative-More_Less"
+        elif self.performative == True and self.performative_mode == "More":
+            print('Method: Performative - Mode: More')
+            print()
+            strategy = "Performative-More"
+        elif self.performative == True and self.performative_mode == "Tail":
+            print('Method: Performative - Mode: Tail')
+            print()
+            strategy = "Performative-Tail"
+        elif self.adaptive == True and self.adaptive_mode == "Adding":
+            print('Method: Adaptive - Mode: Adding')
+            print()
+            strategy = "Adaptive-Adding"
+        elif self.adaptive == True and self.adaptive_mode == "Subtracting":
+            print('Method: Adaptive - Mode: Subtracting')
+            print()
+            strategy = "Adaptive-Subtracting"
+        elif self.adaptive == True and self.adaptive_mode == "Balancing1":
+            print('Method: Adaptive - Mode: Balancing1')
+            print()
+            strategy = "Adaptive-Balancing1"
+        elif self.adaptive == True and self.adaptive_mode == "Balancing2":
+            print('Method: Adaptive - Mode: Balancing2')
+            print()
+            strategy = "Adaptive-Balancing2"
+        elif self.arbitrary == True and self.arbitrary_mode == "Increasing":
+            print('Method: Arbitrary - Mode: Increasing')
+            print()
+            strategy = "Arbitrary-Increasing"
+        elif self.arbitrary == True and self.arbitrary_mode == "Decreasing":
+            print('Method: Arbitrary - Mode: Decreasing')
+            print()
+            strategy = "Arbitrary-Decreasing"
+        elif self.arbitrary == True and self.arbitrary_mode == "Common":
+            print('Method: Arbitrary - Mode: Common')
+            print()
+            strategy = "Arbitrary-Common"
+        else:
+            print('Method: Classic')
+            print()
+            strategy = "Classic"
+        
         return strategy
 
     def response(self):
@@ -1129,7 +1133,9 @@ class IterativeTD2C():
         warnings.filterwarnings("ignore", category=UndefinedMetricWarning)
         warnings.filterwarnings("ignore", category=FutureWarning)
 
-        for i in range(best_edges.shape[0]):
+        forind = best_edges.shape[0]
+
+        for i in range(forind):
 
             print()
             print(f'----------------------------  Estimation {i}  ----------------------------')
@@ -1448,54 +1454,54 @@ class IterativeTD2C():
                 causal_df_unif_1 = causal_df_unif_provv
 
 
-                # reset index
-                causal_df_unif_1.reset_index(drop=True, inplace=True)
-                # add to list of results
-                causal_df_unified.append(causal_df_unif_1)
+            # reset index
+            causal_df_unif_1.reset_index(drop=True, inplace=True)
+            # add to list of results
+            causal_df_unified.append(causal_df_unif_1)
 
-                # # STOPPING CRITERIA 1: if causal df is the same as the previous one for 3 consecutive iterations
-                if any(causal_df_unif_1.equals(df) for df in causal_df_unified):
-                    stop_1 = stop_1 + 1
-                    if stop_1 == 3:
-                        roc_scores.append(roc)
-                        print()
-                        print(f'Most relevant Edges have been the same for 3 consecutive iterations:')
-                        print()
-                        print(causal_df_unif_1)
-                        print()
-                        print(f'No more improvements, let\'s stop here.')
-                        print()
-                        break
-                    else:
-                        stop_1 = 0
-
-                # save the causal_df as a pkl file alone
-                output_folder = self.results_folder + f'metrics/estimate_{i}/'
-
-                # Create the folder if it doesn't exist
-                if not os.path.exists(output_folder):
-                    os.makedirs(output_folder)
-
-                with open(os.path.join(output_folder, f'causal_df_top_{self.k}_td2c_R_N5_unified.pkl'), 'wb') as f:
-                    pickle.dump(causal_df_unif_1, f)
-                
-                # print the resultant causal_df
-                if i != best_edges.shape[0]:
+            # # STOPPING CRITERIA 1: if causal df is the same as the previous one for 3 consecutive iterations
+            if any(causal_df_unif_1.equals(df) for df in causal_df_unified):
+                stop_1 = stop_1 + 1
+                if stop_1 == 3:
+                    roc_scores.append(roc)
                     print()
-                    print(f'Most relevant Edges that will be added in the next iteration:')
+                    print(f'Most relevant Edges have been the same for 3 consecutive iterations:')
+                    print()
                     print(causal_df_unif_1)
                     print()
+                    print(f'No more improvements, let\'s stop here.')
+                    print()
+                    break
                 else:
-                    print()
-                    print(f'Most relevant Edges:')
-                    print(causal_df_unif_1)
-                    print()
-                    print('End of iterations.')
+                    stop_1 = 0
 
-                # final_roc is the highest in the roc_scores
-                final_roc = max(roc_scores)
-                # final_causal_df is the one before the one with the highest roc_score in causal_df_unified
-                final_causal_df = causal_df_unified[roc_scores.index(final_roc) - 1]
+            # save the causal_df as a pkl file alone
+            output_folder = self.results_folder + f'metrics/estimate_{i}/'
+
+            # Create the folder if it doesn't exist
+            if not os.path.exists(output_folder):
+                os.makedirs(output_folder)
+
+            with open(os.path.join(output_folder, f'causal_df_top_{self.k}_td2c_R_N5_unified.pkl'), 'wb') as f:
+                pickle.dump(causal_df_unif_1, f)
+            
+            # print the resultant causal_df
+            if i != forind:
+                print()
+                print(f'Most relevant Edges that will be added in the next iteration:')
+                print(causal_df_unif_1)
+                print()
+            else:
+                print()
+                print(f'Most relevant Edges:')
+                print(causal_df_unif_1)
+                print()
+                print('End of iterations.')
+
+            # final_roc is the highest in the roc_scores
+            final_roc = max(roc_scores)
+            # final_causal_df is the one before the one with the highest roc_score in causal_df_unified
+            final_causal_df = causal_df_unified[roc_scores.index(final_roc) - 1]
 
         return final_roc, final_causal_df
 
@@ -1930,8 +1936,10 @@ class IterativeTD2C():
         # Check parameters:
         self.param_check()
 
+        self.start()
+
         # Give info one the iteration
-        strategy = self.start()
+        strategy = self.strategy()
 
         # Start the iteration?
         response = self.response()
