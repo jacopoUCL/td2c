@@ -358,7 +358,6 @@ class IterativeTD2C():
             tail = 0
             operation = ""
             operation_reg = []
-            ind = []
             if self.performative == True and self.performative_mode == "More_Less":
                 self.it = 1000
             elif self.performative == True and self.performative_mode == "More":
@@ -786,24 +785,23 @@ class IterativeTD2C():
                             causal_df_unif_1 = causal_df_unif_provv
 
                     elif self.adaptive_mode == "Balancing2":
+                        # for i ==1
+                        # Add 1 if the ROC is worse than the one before
+                        # for i > 1
                         # Add 1 if the ROC is worse than the one before and:
-
-                        # The last operation was an addition, and the ROC improved.
+                        # The last operation was an addition, and the ROC improved
                         # The last operation was a subtraction, and the ROC decreased.
                         # Remove 1 if the ROC is worse than the one before and:
-
                         # The last operation was an addition, and the ROC decreased.
                         # The last operation was a subtraction, and the ROC improved.
                         if i == 0:
                             previous_size = self.size_causal_df
                             causal_df_unif_1 = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                            ind.append(i)
                             operation_reg.append(None)
                         elif i == 1:
                             if roc_scores[i] < roc_scores[i-1]:
                                     previous_size = previous_size + 1
                                     operation = "add"
-                                    ind.append(i)
                                     operation_reg.append(operation)
                             else:
                                 operation_reg.append(None)
@@ -825,22 +823,22 @@ class IterativeTD2C():
 
                             causal_df_unif_1 = causal_df_unif_provv
                         else:
-                            if roc_scores[i] < roc_scores[i-1]: # 2 - 1
-                                ind.append(i) # ind = [0,1,2]
-                                last_operation_index = len(operation_reg) - operation_reg[::-1].index(operation)
+                            if roc_scores[i] < roc_scores[i-1]:
+                                # index of the element in operation_reg != None with the highest index
+                                last_operation_index = len(operation_reg) - 1 - operation_reg[::-1].index(next(filter(None, operation_reg)))
                                 last_operation = operation_reg[last_operation_index]
                                 if last_operation == "add" and roc_scores[last_operation_index] < roc_scores[last_operation_index + 1]:
-                                    previous_size -= 1
-                                    operation = "sub"
+                                    previous_size += 1
+                                    operation = "add"
                                 elif last_operation == "add" and roc_scores[last_operation_index] >= roc_scores[last_operation_index + 1]:
-                                    previous_size += 1
-                                    operation = "add"
-                                elif last_operation == "sub" and roc_scores[last_operation_index] < roc_scores[last_operation_index + 1]:
-                                    previous_size += 1
-                                    operation = "add"
-                                elif last_operation == "sub" and roc_scores[last_operation_index] >= roc_scores[last_operation_index + 1]:
                                     previous_size -= 1
                                     operation = "sub"
+                                elif last_operation == "sub" and roc_scores[last_operation_index] < roc_scores[last_operation_index + 1]:
+                                    previous_size -= 1
+                                    operation = "sub"
+                                elif last_operation == "sub" and roc_scores[last_operation_index] >= roc_scores[last_operation_index + 1]:
+                                    previous_size += 1
+                                    operation = "add"
                                 operation_reg.append(operation)
                             else:
                                 operation_reg.append(None)
@@ -1085,10 +1083,17 @@ class IterativeTD2C():
                     pickle.dump(causal_df_unif_1, f)
                 
                 # print the resultant causal_df
-                print()
-                print(f'Most relevant Edges that will be added in the next iteration:')
-                print(causal_df_unif_1)
-                print()
+                if i != self.it:
+                    print()
+                    print(f'Most relevant Edges that will be added in the next iteration:')
+                    print(causal_df_unif_1)
+                    print()
+                else:
+                    print()
+                    print(f'Most relevant Edges:')
+                    print(causal_df_unif_1)
+                    print()
+                    print('End of iterations.')
         
             return roc_scores, causal_df_unified
         
@@ -1102,11 +1107,392 @@ class IterativeTD2C():
             print("ERROR:")
             return
 
-    def final_iteration(self, causal_df_unified):
+    def final_iteration(self, best_edges):
+
+        # reduce best_edges to max 10 rows if it's bigger
+        if best_edges.shape[0] > 10:
+            best_edges = best_edges.nlargest(10, 'counts')
+
+        causal_df_unified = best_edges
+
+        # use causal_df_unified to run an ioterative TD2C with and Arbitrary Decreasing mode
+
+        # setting
+        stop_1 = 0
+        stop_2 = 0
+        roc_scores = []
+        causal_df_unified = []
+        causal_df_mid = []
+        roc_0 = 0
+        np.random.seed(self.SEED)
+        warnings.filterwarnings("ignore", category=UndefinedMetricWarning)
+
+        for i in range(best_edges.shape[0]):
+            # Iterative TD2C ####################################################
+            input_folder = self.data_folder
+            output_folder = self.descr_folder + f'estimate_{i}/'        
+
+            # Descriptors Generation ############################################
+            # List of files to process
+            to_process = []
+
+            # Filtering the files to process
+            for file in sorted(os.listdir(input_folder)):
+                gen_process_number = int(file.split('_')[0][1:])
+                n_variables = int(file.split('_')[1][1:])
+                max_neighborhood_size = int(file.split('_')[2][2:])
+                noise_std = float(file.split('_')[3][1:-4])
+
+                if noise_std != self.noise_std_filter or max_neighborhood_size != self.max_neighborhood_size_filter:
+                    continue
+
+                to_process.append(file)
+
+            print('Making Descriptors...')
+
+            # Process each file and create new DAGs based on causal paths
+            for file in tqdm(to_process):
+                gen_process_number = int(file.split('_')[0][1:])
+                n_variables = int(file.split('_')[1][1:])
+                max_neighborhood_size = int(file.split('_')[2][2:])
+                noise_std = float(file.split('_')[3][1:-4])
+
+                dataloader = DataLoader(n_variables=n_variables, maxlags=self.maxlags)
+                dataloader.from_pickle(input_folder + file)
+
+                d2c = D2C(
+                        observations=dataloader.get_observations(),
+                        dags=dataloader.get_dags(),
+                        couples_to_consider_per_dag= self.COUPLES_TO_CONSIDER_PER_DAG,
+                        MB_size= self.MB_SIZE,
+                        n_variables=n_variables,
+                        maxlags= self.maxlags,
+                        seed= self.SEED,
+                        n_jobs= self.N_JOBS,
+                        full=True,
+                        quantiles=True,
+                        normalize=True,
+                        cmi='original',
+                        mb_estimator= 'iterative',
+                        top_vars=self.top_vars,
+                        causal_df=causal_df_unified
+                    )
+
+                d2c.initialize()  # Initializes the D2C object
+                descriptors_df = d2c.get_descriptors_df()  # Computes the descriptors
+
+                # Save the descriptors along with new DAGs if needed
+                descriptors_df.insert(0, 'process_id', gen_process_number)
+                descriptors_df.insert(2, 'n_variables', n_variables)
+                descriptors_df.insert(3, 'max_neighborhood_size', max_neighborhood_size)
+                descriptors_df.insert(4, 'noise_std', noise_std)
+
+                descriptors_df.to_pickle(output_folder + f'Estimate_{i}_P{gen_process_number}_N{n_variables}_Nj{max_neighborhood_size}_n{noise_std}_MB{self.MB_SIZE}.pkl')
+
+            # Set Classifier #################################################################################
+            data_root = self.data_folder
+
+            to_dos = []
+
+            # This loop gets a list of all the files to be processed
+            for testing_file in sorted(os.listdir(data_root)):
+                if testing_file.endswith('.pkl'):
+                    gen_process_number = int(testing_file.split('_')[0][1:])
+                    n_variables = int(testing_file.split('_')[1][1:])
+                    max_neighborhood_size = int(testing_file.split('_')[2][2:])
+                    noise_std = float(testing_file.split('_')[3][1:-4])
+                    
+                    if noise_std != 0.01: # if the noise is different we skip the file
+                        continue
+
+                    if max_neighborhood_size != 2: # if the max_neighborhood_size is different we skip the file
+                        continue
+
+                    to_dos.append(testing_file) # we add the file to the list (to_dos) to be processed
+
+            # sort to_dos by number of variables
+            to_dos_5_variables = [file for file in to_dos if int(file.split('_')[1][1:]) == 5]
+            # to_dos_10_variables = [file for file in to_dos if int(file.split('_')[1][1:]) == 10]
+            # to_dos_25_variables = [file for file in to_dos if int(file.split('_')[1][1:]) == 25]
+
+            # we create a dictionary with the lists of files to be processed
+            todos = {'5': to_dos_5_variables} # , '10': to_dos_10_variables, '25': to_dos_25_variables
+
+            # we create a dictionary to store the results
+            dfs = []
+            descriptors_root = self.descr_folder + f'estimate_{i}/'
+
+            # Create the folder if it doesn't exist
+            if not os.path.exists(descriptors_root):
+                os.makedirs(descriptors_root)
+
+            # Re-save pickle files with protocol 4
+            for testing_file in sorted(os.listdir(descriptors_root)):
+                if testing_file.endswith('.pkl'):
+                    file_path = os.path.join(descriptors_root, testing_file)
+                    with open(file_path, 'rb') as f:
+                        data = pickle.load(f)
+                    
+                    # Re-save with protocol 4
+                    with open(file_path, 'wb') as f:
+                        pickle.dump(data, f, protocol=4)
+
+            # This loop gets the descriptors for the files to be processed
+            for testing_file in sorted(os.listdir(descriptors_root)):
+                if testing_file.endswith('.pkl'):
+                    df = pd.read_pickle(os.path.join(descriptors_root, testing_file))
+                    if isinstance(df, pd.DataFrame):
+                        dfs.append(df)
+
+            # we concatenate the descriptors
+            descriptors_training = pd.concat(dfs, axis=0).reset_index(drop=True)
+
+            # Classifier & Evaluation Metrics #################################################################
+
+            print('Classification & Evaluation Metrics')
+
+            for n_vars, todo in todos.items():
+
+                m1 = f'Estimate_{i}_rocs_process'
+                # m2 = f'Estimate_{i}_precision_process'
+                # m3 = f'Estimate_{i}_recall_process'
+                # m4 = f'Estimate_{i}_f1_process'
+
+                globals()[m1] = {}
+                # globals()[m2] = {}
+                # globals()[m3] = {}
+                # globals()[m4] = {}
+                causal_df_1 = {}
+
+                for testing_file in tqdm(todo):
+                    gen_process_number = int(testing_file.split('_')[0][1:])
+                    n_variables = int(testing_file.split('_')[1][1:])
+                    max_neighborhood_size = int(testing_file.split('_')[2][2:])
+                    noise_std = float(testing_file.split('_')[3][1:-4])
+
+                    # split training and testing data
+                    training_data = descriptors_training.loc[descriptors_training['process_id'] != gen_process_number]
+                    X_train = training_data.drop(columns=['process_id', 'graph_id', 'n_variables', 'max_neighborhood_size','noise_std', 'edge_source', 'edge_dest', 'is_causal',])
+                    y_train = training_data['is_causal']
+
+                    testing_data = descriptors_training.loc[(descriptors_training['process_id'] == gen_process_number) & (descriptors_training['n_variables'] == n_variables) & (descriptors_training['max_neighborhood_size'] == max_neighborhood_size) & (descriptors_training['noise_std'] == noise_std)]
+
+                    model = BalancedRandomForestClassifier(n_estimators=100, random_state=0, n_jobs=50, max_depth=None, sampling_strategy='auto', replacement=True, bootstrap=False)
+                    # model = RandomForestClassifier(n_estimators=50, random_state=0, n_jobs=50, max_depth=10)
+
+                    model = model.fit(X_train, y_train)
+
+                    rocs = {}
+                    # precisions = {}
+                    # recalls = {}
+                    # f1s = {}
+                    causal_dfs = {}
+                    for graph_id in range(40):
+                        #load testing descriptors
+                        test_df = testing_data.loc[testing_data['graph_id'] == graph_id]
+                        test_df = test_df.sort_values(by=['edge_source','edge_dest']).reset_index(drop=True) # sort for coherence
+
+                        X_test = test_df.drop(columns=['process_id', 'graph_id', 'n_variables', 'max_neighborhood_size','noise_std', 'edge_source', 'edge_dest', 'is_causal',])
+                        y_test = test_df['is_causal']
+
+                        y_pred_proba = model.predict_proba(X_test)[:,1]
+                        y_pred = model.predict(X_test)
+
+                        roc = roc_auc_score(y_test, y_pred_proba)
+                        # precision = precision_score(y_test, y_pred)
+                        # recall = recall_score(y_test, y_pred)
+                        # f1 = f1_score(y_test, y_pred)
+                        
+                        rocs[graph_id] = roc
+                        # precisions[graph_id] = precision
+                        # recalls[graph_id] = recall
+                        # f1s[graph_id] = f1
+                        
+                        # add to causal_df test_df, y_pred_proba and y_pred
+                        causal_dfs[graph_id] = test_df
+                        causal_dfs[graph_id]['y_pred_proba'] = y_pred_proba
+                        causal_dfs[graph_id]['y_pred'] = y_pred
+
+                    causal_df_1[gen_process_number] = causal_dfs
+                    globals()[m1][gen_process_number] = rocs
+                    # globals()[m2][gen_process_number] = precisions
+                    # globals()[m3][gen_process_number] = recalls
+                    # globals()[m4][gen_process_number] = f1s
+
+            # pickle everything
+            output_folder = self.results_folder + f'journals/estimate_{i}/'
+
+            # Create the folder if it doesn't exist
+            if not os.path.exists(output_folder):
+                os.makedirs(output_folder)
+
+            with open(os.path.join(output_folder, f'journal_results_td2c_R_N5.pkl'), 'wb') as f:
+                everything = (globals()[m1], causal_df_1) #, globals()[m2], globals()[m3], globals()[m4]
+                pickle.dump(everything, f)
+
+            # Load results #####################################################################################
+            input_folder = self.results_folder + f'journals/estimate_{i}/'
+
+            with open(os.path.join(input_folder, f'journal_results_td2c_R_N5.pkl'), 'rb') as f:
+                TD2C_1_rocs_process, causal_df_1 = pickle.load(f) # , TD2C_1_precision_process, TD2C_1_recall_process, TD2C_1_f1_process
+
+
+            # STOPPING CRITERIA 2: Using ROC-AUC score
+            roc = pd.DataFrame(TD2C_1_rocs_process).mean().mean()
+            roc_scores.append(roc)
+        
+            print()
+            print(f'ROC-AUC score: {roc}')
+            print()
+
+            if i == 0:
+                if roc < 0.5:
+                    print('ROC-AUC is too low, let\'s stop here.')
+                    break
+            elif i > 0:
+                if roc <= roc_0:
+                    stop_2 = stop_2 + 1
+                    if stop_2 == 5:
+                        print()
+                        print('Estimations are not improving, let\'s stop here.')
+                        print()
+                        break
+                else:
+                    stop_2 = 0
+                
+                if roc <= roc_0 - 0.1:
+                    print()
+                    print(f'ROC-AUC score: {roc}')
+                    print()
+                    print('Estimations are not improving, let\'s stop here.')
+                    print()
+                    break
+
+            roc_0 = roc
+
+            # Reshape causal_df #################################################################################
+            # keep only rows for top k y_pred_proba
+            for process_id, process_data in causal_df_1.items():
+                for graph_id, graph_data in process_data.items():
+                    causal_df_1[process_id][graph_id] = graph_data.nlargest(self.k, 'y_pred_proba')
+
+            # for each causal_df keep only process_id, graph_id, edge_source, edge_dest and y_pred_proba
+            for process_id, process_data in causal_df_1.items():
+                for graph_id, graph_data in process_data.items():
+                    causal_df_1[process_id][graph_id] = graph_data[['process_id', 'graph_id', 'edge_source', 'edge_dest', 'y_pred_proba']]
+                    causal_df_1[process_id][graph_id].reset_index(drop=True, inplace=True)
+
+            # save the causal_df as a pkl file alone
+            output_folder = self.results_folder + f'metrics/estimate_{i}/'
+
+            # Create the folder if it doesn't exist
+            if not os.path.exists(output_folder):
+                os.makedirs(output_folder)
+
+            with open(os.path.join(output_folder, f'causal_df_top_{self.k}_td2c_R_N5.pkl'), 'wb') as f:
+                pickle.dump(causal_df_1, f)
+
+            # Unify causal_df #################################################################################
+            input_folder = self.results_folder + f'metrics/estimate_{i}/'
+
+            with open(os.path.join(input_folder, f'causal_df_top_{self.k}_td2c_R_N5.pkl'), 'rb') as f:
+                causal_df_1 = pickle.load(f)
+
+            # create a dataframe with all the causal_df
+            dfs = []
+            for process_id, process_data in causal_df_1.items():
+                for graph_id, graph_data in process_data.items():
+                    dfs.append(graph_data)
+
+            causal_df_unif_1 = pd.concat(dfs, axis=0).reset_index(drop=True)
+
+            # sort in ascending order by process_id, graph_id, edge_source and edge_dest
+            causal_df_unif_1.sort_values(by=['process_id', 'graph_id', 'edge_source', 'edge_dest'], inplace=True)
+
+            # unique of causal_df_unif for couples of edge_source and edge_dest
+            causal_df_unif_1 = causal_df_unif_1.drop_duplicates(subset=['edge_source', 'edge_dest'])
+
+            causal_df_mid.append(causal_df_unif_1)
+
+
+            # method: Arbitrary - mode: Decreasing
+            if i == 0:
+                previous_size = self.size_causal_df
+                causal_df_unif_1 = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
+            else:
+                previous_size = previous_size - 1
+
+                # Ensure size boundaries
+                previous_size = max(1, min(previous_size, 15))
+
+                # Select the top rows according to the adjusted size
+                causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
+
+                # index reset
+                causal_df_unif_provv.reset_index(drop=True, inplace=True)
+
+                # check if causal_df_unif_1 is equal to any previous element in causal_df_unified list of dataframes and add 1 to its size 
+                # if it is until it is different
+                while any(causal_df_unif_provv.equals(df) for df in causal_df_unified):
+                    previous_size += 1
+                    causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
+                    causal_df_unif_provv.reset_index(drop=True, inplace=True)
+
+                causal_df_unif_1 = causal_df_unif_provv
+
+
+                # reset index
+                causal_df_unif_1.reset_index(drop=True, inplace=True)
+                # add to list of results
+                causal_df_unified.append(causal_df_unif_1)
+
+                # # STOPPING CRITERIA 1: if causal df is the same as the previous one for 3 consecutive iterations
+                if any(causal_df_unif_1.equals(df) for df in causal_df_unified):
+                    stop_1 = stop_1 + 1
+                    if stop_1 == 3:
+                        roc_scores.append(roc)
+                        print()
+                        print(f'Most relevant Edges have been the same for 3 consecutive iterations:')
+                        print()
+                        print(causal_df_unif_1)
+                        print()
+                        print(f'No more improvements, let\'s stop here.')
+                        print()
+                        break
+                    else:
+                        stop_1 = 0
+
+                # save the causal_df as a pkl file alone
+                output_folder = self.results_folder + f'metrics/estimate_{i}/'
+
+                # Create the folder if it doesn't exist
+                if not os.path.exists(output_folder):
+                    os.makedirs(output_folder)
+
+                with open(os.path.join(output_folder, f'causal_df_top_{self.k}_td2c_R_N5_unified.pkl'), 'wb') as f:
+                    pickle.dump(causal_df_unif_1, f)
+                
+                # print the resultant causal_df
+                if i != self.it:
+                    print()
+                    print(f'Most relevant Edges that will be added in the next iteration:')
+                    print(causal_df_unif_1)
+                    print()
+                else:
+                    print()
+                    print(f'Most relevant Edges:')
+                    print(causal_df_unif_1)
+                    print()
+                    print('End of iterations.')
+
+                # final_roc is the highest in the roc_scores
+                final_roc = max(roc_scores)
+                # final_causal_df is the one with the highest roc_score
+                final_causal_df = causal_df_unified[roc_scores.index(final_roc)-1]
 
         return final_roc, final_causal_df
 
-    def best_edges(self, roc_scores, causal_df_unified):
+    def best_edges(self, roc_scores, causal_df_unified, roc_scores_df):
         
         # select best roc_scores as the ones > roc_score[0]
         best_roc_scores = [roc for roc in roc_scores if roc > roc_scores[0]]
@@ -1128,13 +1514,14 @@ class IterativeTD2C():
         elif len(best_roc_scores) == 1:
             best_edges = pd.concat(best_causal_df_unified, axis=0).reset_index(drop=True)
             print('The only improvement happened with these edges: ')
-            print()
             print(best_causal_df_unified[0])
+            print()
+            print('To make a relevant conclusion, we need at least 2 improvements.')
             return
         else:
             print()
             print('Best ROC-AUC scores:')
-            print({i: roc for i, roc in enumerate(best_roc_scores)})
+            print(roc_scores_df[roc_scores_df['roc_score'].isin(best_roc_scores)])
             print()
             best_edges = pd.concat(best_causal_df_unified, axis=0).reset_index(drop=True)
             best_edges = best_edges[best_edges.duplicated(subset=['edge_source', 'edge_dest'], keep=False)]
@@ -1148,7 +1535,6 @@ class IterativeTD2C():
             # print best_edges
             print()
             print('Best Edges:')
-            print()
             print(best_edges)
             print()
 
@@ -1218,10 +1604,13 @@ class IterativeTD2C():
                 else:
                     roc_scores_df.to_csv(output_folder + f'roc_scores_TD2C_{self.method}_{len(roc_scores)}_iterations_{self.k}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag_{strategy}.csv', index=False)
                 print(roc_scores_df)
+            
+            return roc_scores_df
 
     def final_run(self, best_edges):
 
         if best_edges == None:
+            print()
             print('Try with a different strategy or change the parameters.')
         
         elif len(best_edges)==1:
@@ -1230,7 +1619,7 @@ class IterativeTD2C():
             print()
             return 
         else:
-            final_roc, final_causal_df = self.final_iteration()
+            final_roc, final_causal_df = self.final_iteration(best_edges)
             print()
             print('Most improved results:')
             print()
@@ -1240,7 +1629,281 @@ class IterativeTD2C():
             print('Causal DataFrame:')
             print(final_causal_df)
 
-        return final_roc
+        return final_roc, final_causal_df
+
+    def finale_estimate(self, final_causal_df, strategy):
+
+        # which index of final_causal_df
+        if final_causal_df.index == 0:
+            print()
+            print('The estimate with highest ROC-AUC score possible, using the best edges possible, is the first one.')
+            print()
+            return
+        else:
+            print()
+            print('The estimate with highest ROC-AUC score possible, using the best edges possible, is the following:')
+            print()
+
+            causal_df_unified = final_causal_df
+
+            # use causal_df_unified to run an ioterative TD2C with and Arbitrary Decreasing mode
+
+            # setting
+            np.random.seed(self.SEED)
+            warnings.filterwarnings("ignore", category=UndefinedMetricWarning)
+
+            
+            # Iterative TD2C ####################################################
+            input_folder = self.data_folder
+            output_folder = self.descr_folder + f'final_estimate/'        
+
+            # Descriptors Generation ############################################
+            # List of files to process
+            to_process = []
+
+            # Filtering the files to process
+            for file in sorted(os.listdir(input_folder)):
+                gen_process_number = int(file.split('_')[0][1:])
+                n_variables = int(file.split('_')[1][1:])
+                max_neighborhood_size = int(file.split('_')[2][2:])
+                noise_std = float(file.split('_')[3][1:-4])
+
+                if noise_std != self.noise_std_filter or max_neighborhood_size != self.max_neighborhood_size_filter:
+                    continue
+
+                to_process.append(file)
+
+            print('Making Descriptors...')
+
+            # Process each file and create new DAGs based on causal paths
+            for file in tqdm(to_process):
+                gen_process_number = int(file.split('_')[0][1:])
+                n_variables = int(file.split('_')[1][1:])
+                max_neighborhood_size = int(file.split('_')[2][2:])
+                noise_std = float(file.split('_')[3][1:-4])
+
+                dataloader = DataLoader(n_variables=n_variables, maxlags=self.maxlags)
+                dataloader.from_pickle(input_folder + file)
+
+                d2c = D2C(
+                        observations=dataloader.get_observations(),
+                        dags=dataloader.get_dags(),
+                        couples_to_consider_per_dag= self.COUPLES_TO_CONSIDER_PER_DAG,
+                        MB_size= self.MB_SIZE,
+                        n_variables=n_variables,
+                        maxlags= self.maxlags,
+                        seed= self.SEED,
+                        n_jobs= self.N_JOBS,
+                        full=True,
+                        quantiles=True,
+                        normalize=True,
+                        cmi='original',
+                        mb_estimator= 'iterative',
+                        top_vars=self.top_vars,
+                        causal_df=causal_df_unified
+                    )
+
+                d2c.initialize()  # Initializes the D2C object
+                descriptors_df = d2c.get_descriptors_df()  # Computes the descriptors
+
+                # Save the descriptors along with new DAGs if needed
+                descriptors_df.insert(0, 'process_id', gen_process_number)
+                descriptors_df.insert(2, 'n_variables', n_variables)
+                descriptors_df.insert(3, 'max_neighborhood_size', max_neighborhood_size)
+                descriptors_df.insert(4, 'noise_std', noise_std)
+
+                descriptors_df.to_pickle(output_folder + f'Final_estimate_P{gen_process_number}_N{n_variables}_Nj{max_neighborhood_size}_n{noise_std}_MB{self.MB_SIZE}.pkl')
+
+            # Set Classifier #################################################################################
+            data_root = self.data_folder
+
+            to_dos = []
+
+            # This loop gets a list of all the files to be processed
+            for testing_file in sorted(os.listdir(data_root)):
+                if testing_file.endswith('.pkl'):
+                    gen_process_number = int(testing_file.split('_')[0][1:])
+                    n_variables = int(testing_file.split('_')[1][1:])
+                    max_neighborhood_size = int(testing_file.split('_')[2][2:])
+                    noise_std = float(testing_file.split('_')[3][1:-4])
+                    
+                    if noise_std != 0.01: # if the noise is different we skip the file
+                        continue
+
+                    if max_neighborhood_size != 2: # if the max_neighborhood_size is different we skip the file
+                        continue
+
+                    to_dos.append(testing_file) # we add the file to the list (to_dos) to be processed
+
+            # sort to_dos by number of variables
+            to_dos_5_variables = [file for file in to_dos if int(file.split('_')[1][1:]) == 5]
+            # to_dos_10_variables = [file for file in to_dos if int(file.split('_')[1][1:]) == 10]
+            # to_dos_25_variables = [file for file in to_dos if int(file.split('_')[1][1:]) == 25]
+
+            # we create a dictionary with the lists of files to be processed
+            todos = {'5': to_dos_5_variables} # , '10': to_dos_10_variables, '25': to_dos_25_variables
+
+            # we create a dictionary to store the results
+            dfs = []
+            descriptors_root = self.descr_folder + f'final_estimate/'
+
+            # Create the folder if it doesn't exist
+            if not os.path.exists(descriptors_root):
+                os.makedirs(descriptors_root)
+
+            # Re-save pickle files with protocol 4
+            for testing_file in sorted(os.listdir(descriptors_root)):
+                if testing_file.endswith('.pkl'):
+                    file_path = os.path.join(descriptors_root, testing_file)
+                    with open(file_path, 'rb') as f:
+                        data = pickle.load(f)
+                    
+                    # Re-save with protocol 4
+                    with open(file_path, 'wb') as f:
+                        pickle.dump(data, f, protocol=4)
+
+            # This loop gets the descriptors for the files to be processed
+            for testing_file in sorted(os.listdir(descriptors_root)):
+                if testing_file.endswith('.pkl'):
+                    df = pd.read_pickle(os.path.join(descriptors_root, testing_file))
+                    if isinstance(df, pd.DataFrame):
+                        dfs.append(df)
+
+            # we concatenate the descriptors
+            descriptors_training = pd.concat(dfs, axis=0).reset_index(drop=True)
+
+            # Classifier & Evaluation Metrics #################################################################
+
+            print('Classification & Evaluation Metrics')
+
+            for n_vars, todo in todos.items():
+
+                m1 = f'Final_stimate_rocs_process'
+                # m2 = f'Estimate_{i}_precision_process'
+                # m3 = f'Estimate_{i}_recall_process'
+                # m4 = f'Estimate_{i}_f1_process'
+
+                globals()[m1] = {}
+                # globals()[m2] = {}
+                # globals()[m3] = {}
+                # globals()[m4] = {}
+                causal_df_1 = {}
+
+                for testing_file in tqdm(todo):
+                    gen_process_number = int(testing_file.split('_')[0][1:])
+                    n_variables = int(testing_file.split('_')[1][1:])
+                    max_neighborhood_size = int(testing_file.split('_')[2][2:])
+                    noise_std = float(testing_file.split('_')[3][1:-4])
+
+                    # split training and testing data
+                    training_data = descriptors_training.loc[descriptors_training['process_id'] != gen_process_number]
+                    X_train = training_data.drop(columns=['process_id', 'graph_id', 'n_variables', 'max_neighborhood_size','noise_std', 'edge_source', 'edge_dest', 'is_causal',])
+                    y_train = training_data['is_causal']
+
+                    testing_data = descriptors_training.loc[(descriptors_training['process_id'] == gen_process_number) & (descriptors_training['n_variables'] == n_variables) & (descriptors_training['max_neighborhood_size'] == max_neighborhood_size) & (descriptors_training['noise_std'] == noise_std)]
+
+                    model = BalancedRandomForestClassifier(n_estimators=100, random_state=0, n_jobs=50, max_depth=None, sampling_strategy='auto', replacement=True, bootstrap=False)
+                    # model = RandomForestClassifier(n_estimators=50, random_state=0, n_jobs=50, max_depth=10)
+
+                    model = model.fit(X_train, y_train)
+
+                    rocs = {}
+                    # precisions = {}
+                    # recalls = {}
+                    # f1s = {}
+                    causal_dfs = {}
+                    for graph_id in range(40):
+                        #load testing descriptors
+                        test_df = testing_data.loc[testing_data['graph_id'] == graph_id]
+                        test_df = test_df.sort_values(by=['edge_source','edge_dest']).reset_index(drop=True) # sort for coherence
+
+                        X_test = test_df.drop(columns=['process_id', 'graph_id', 'n_variables', 'max_neighborhood_size','noise_std', 'edge_source', 'edge_dest', 'is_causal',])
+                        y_test = test_df['is_causal']
+
+                        y_pred_proba = model.predict_proba(X_test)[:,1]
+                        y_pred = model.predict(X_test)
+
+                        roc = roc_auc_score(y_test, y_pred_proba)
+                        # precision = precision_score(y_test, y_pred)
+                        # recall = recall_score(y_test, y_pred)
+                        # f1 = f1_score(y_test, y_pred)
+                        
+                        rocs[graph_id] = roc
+                        # precisions[graph_id] = precision
+                        # recalls[graph_id] = recall
+                        # f1s[graph_id] = f1
+                        
+                        # add to causal_df test_df, y_pred_proba and y_pred
+                        causal_dfs[graph_id] = test_df
+                        causal_dfs[graph_id]['y_pred_proba'] = y_pred_proba
+                        causal_dfs[graph_id]['y_pred'] = y_pred
+
+                    causal_df_1[gen_process_number] = causal_dfs
+                    globals()[m1][gen_process_number] = rocs
+                    # globals()[m2][gen_process_number] = precisions
+                    # globals()[m3][gen_process_number] = recalls
+                    # globals()[m4][gen_process_number] = f1s
+
+            # pickle everything
+            output_folder = self.results_folder + f'journals/final_estimate/'
+
+            # Create the folder if it doesn't exist
+            if not os.path.exists(output_folder):
+                os.makedirs(output_folder)
+
+            with open(os.path.join(output_folder, f'journal_results_td2c_R_N5.pkl'), 'wb') as f:
+                everything = (globals()[m1], causal_df_1) #, globals()[m2], globals()[m3], globals()[m4]
+                pickle.dump(everything, f)
+
+            # Load results #####################################################################################
+            input_folder = self.results_folder + f'journals/final_estimate/'
+
+            with open(os.path.join(input_folder, f'journal_results_td2c_R_N5.pkl'), 'rb') as f:
+                TD2C_1_rocs_process, causal_df_1 = pickle.load(f) # , TD2C_1_precision_process, TD2C_1_recall_process, TD2C_1_f1_process
+
+
+            # STOPPING CRITERIA 2: Using ROC-AUC score
+            roc_avg = pd.DataFrame(TD2C_1_rocs_process).mean().mean()
+            roc = pd.DataFrame(TD2C_1_rocs_process)
+
+            # Combine data for boxplot
+            combined_data = []
+
+            for col in roc.columns:
+                combined_data.append(roc[col])
+
+            # Create labels for x-axis
+            labels = []
+            for col in roc.columns:
+                labels.append(f'{col} TD2C_Reg')
+
+            # Plotting
+            plt.figure(figsize=(12, 6))
+            box = plt.boxplot(combined_data, patch_artist=True)
+
+            # Color customization
+            colors = ['lightblue', 'lightgreen', 'lightcoral']
+            for patch, i in zip(box['boxes'], range(len(box['boxes']))):
+                patch.set_facecolor(colors[i % 3])
+
+
+            plt.xticks(range(1, len(labels) + 1), labels, rotation=-90)
+            plt.title('Final boxplot of ROC-AUC scores for Iterative TD2C, with Regression to estimate MI (5 variables processes)')
+            plt.xlabel('Processes')
+            plt.ylabel('ROC-AUC score')
+            plt.tight_layout()
+            plt.show()
+
+            # save the plot in folder
+            otuput_folder = self.results_folder + 'plots/final_estimate/'
+            plt.savefig(output_folder + f'FINAL_ROC_AUC_scores_TD2C_{self.method}_iterations_{self.size_causal_df}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag_{strategy}.pdf')
+
+            print()
+            print(roc_avg)
+            print()
+            print('End of the process.')
+            print
+
 
 
     def main(self):
@@ -1261,10 +1924,13 @@ class IterativeTD2C():
         self.plot_results(roc_scores, strategy)
 
         # print roc scores
-        self.df_scores(roc_scores, strategy)
+        roc_scores_df = self.df_scores(roc_scores, strategy)
 
         # best edges
-        best_edges = self.best_edges(causal_df_unified)
+        best_edges = self.best_edges(roc_scores, causal_df_unified, roc_scores_df)
 
         # final run
-        self.final_run(best_edges)
+        final_roc, final_causal_df =  self.final_run(best_edges)
+
+        # final estimate
+        self.finale_estimate(final_causal_df, strategy)
