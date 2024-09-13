@@ -1609,15 +1609,16 @@ class IterativeTD2C():
 
     def final_run(self, best_edges):
 
-        if best_edges == None:
+        if best_edges.empty:
             print()
             print('Try with a different strategy or change the parameters.')
+            return None, None
         
         elif len(best_edges)==1:
             print()
             print('No further improvements can be made. Try with a different strategy or change the parameters.')
             print()
-            return 
+            return None, None
         else:
             final_roc, final_causal_df = self.final_iteration(best_edges)
             print()
@@ -1634,10 +1635,16 @@ class IterativeTD2C():
     def finale_estimate(self, final_causal_df, strategy):
 
         # which index of final_causal_df
-        if final_causal_df.index == 0:
+        if final_causal_df.index == None:
+            print()
+            print('End of the process.')
+            print()
+        elif final_causal_df.index == 0:
             print()
             print('The estimate with highest ROC-AUC score possible, using the best edges possible, is the first one.')
             print()
+            print('End of the process.')
+            print
             return
         else:
             print()
