@@ -1430,15 +1430,18 @@ class IterativeTD2C():
             causal_df_mid.append(causal_df_unif_1)
 
 
-            # method: Arbitrary - mode: Decreasing
+            # method: Adaptive - Decreasing
+
             if i == 0:
                 previous_size = forind
                 causal_df_unif_1 = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
             else:
-                previous_size = previous_size - 1
+                # Adjust size based on the comparison of ROC scores
+                if roc_scores[i] < roc_scores[i-1]:
+                    previous_size = previous_size - 1 # this is going to remove the least relevant edge, i.e. the one with the lowest y_pred_proba
 
                 # Ensure size boundaries
-                previous_size = max(1, min(previous_size, 15))
+                previous_size = max(1, min(previous_size, 10))
 
                 # Select the top rows according to the adjusted size
                 causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
@@ -1536,7 +1539,7 @@ class IterativeTD2C():
             return best_edges
         else:
             print()
-            print('Best ROC-AUC scores:')
+            print(f'Best ROC-AUC scores: these iterations have improved the results of the first estimate with {self.method} method.')
             print(roc_scores_df[roc_scores_df['roc_score'].isin(best_roc_scores)])
             print()
             best_edges = pd.concat(best_causal_df_unified, axis=0).reset_index(drop=True)
@@ -1551,7 +1554,7 @@ class IterativeTD2C():
 
             # print best_edges
             print()
-            print('Best Edges:')
+            print('Best Edges: these edges have been present in at least 2 of the best iterations\' causal dataframes.')
             print(best_edges)
             print()
 
@@ -1638,8 +1641,13 @@ class IterativeTD2C():
             return None, None
         else:
             print()
-            print('Final Iteration using the Arbitrary method with Decreasing mode:')
+            print('°°°°°°°°°°°°°°°°°')
+            print(' Final Iteration ')
+            print('°°°°°°°°°°°°°°°°°')
+            print('We use the Adaptive - Subtractive method to find the best pool of edges among the best ones.')
+
             final_roc, final_causal_df = self.final_iteration(best_edges)
+            
             print()
             print('°°°°°°°°°°°°°°°°°°°°°°°')
             print(' Most improved results ')
@@ -1668,6 +1676,9 @@ class IterativeTD2C():
             print
             return
         else:
+            print('°°°°°°°°°°°°°°°°°°°°°°°°°°')
+            print('         FINAL STEP       ')
+            print('°°°°°°°°°°°°°°°°°°°°°°°°°°')
             print()
             print('The estimate with highest ROC-AUC score possible, using the best edges possible, is the following:')
             print()
@@ -1939,7 +1950,7 @@ class IterativeTD2C():
             plt.savefig(output_folder + f'FINAL_ROC_AUC_scores_TD2C_{self.method}_iterations_{self.size_causal_df}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag_{strategy}.pdf')
 
             print()
-            print(roc_avg)
+            print(f'FINAL ROC-AUC: {roc_avg}')
             print()
             print('End of the process.')
             print
