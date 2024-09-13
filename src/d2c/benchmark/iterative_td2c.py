@@ -1128,6 +1128,8 @@ class IterativeTD2C():
         stop_2 = 0
         roc_scores = []
         causal_df_mid = []
+        causal_df_unified_list = []
+        causal_df_unified_list.append(causal_df_unified)
         roc_0 = 0
         np.random.seed(self.SEED)
         warnings.filterwarnings("ignore", category=UndefinedMetricWarning)
@@ -1135,7 +1137,7 @@ class IterativeTD2C():
 
         forind = best_edges.shape[0]
 
-        for i in range(forind):
+        for i in range(forind): # this loop goes from 0 to forind-1
 
             print()
             print(f'----------------------------  Estimation {i}  ----------------------------')
@@ -1188,7 +1190,7 @@ class IterativeTD2C():
                         cmi='original',
                         mb_estimator= 'iterative',
                         top_vars=self.top_vars,
-                        causal_df=causal_df_unified
+                        causal_df=causal_df_unified_list[i],
                     )
 
                 d2c.initialize()  # Initializes the D2C object
@@ -1430,7 +1432,7 @@ class IterativeTD2C():
 
             # method: Arbitrary - mode: Decreasing
             if i == 0:
-                previous_size = self.size_causal_df
+                previous_size = forind
                 causal_df_unif_1 = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
             else:
                 previous_size = previous_size - 1
@@ -1457,7 +1459,7 @@ class IterativeTD2C():
             # reset index
             causal_df_unif_1.reset_index(drop=True, inplace=True)
             # add to list of results
-            causal_df_unified.append(causal_df_unif_1)
+            causal_df_unified_list.append(causal_df_unif_1)
 
             # # STOPPING CRITERIA 1: if causal df is the same as the previous one for 3 consecutive iterations
             if any(causal_df_unif_1.equals(df) for df in causal_df_unified):
@@ -1486,7 +1488,7 @@ class IterativeTD2C():
                 pickle.dump(causal_df_unif_1, f)
             
             # print the resultant causal_df
-            if i != forind:
+            if i != forind-1:
                 print()
                 print(f'Most relevant Edges that will be added in the next iteration:')
                 print(causal_df_unif_1)
@@ -1498,10 +1500,10 @@ class IterativeTD2C():
                 print()
                 print('End of iterations.')
 
-            # final_roc is the highest in the roc_scores
-            final_roc = max(roc_scores)
-            # final_causal_df is the one before the one with the highest roc_score in causal_df_unified
-            final_causal_df = causal_df_unified[roc_scores.index(final_roc) - 1]
+        # final_roc is the highest in the roc_scores
+        final_roc = max(roc_scores)
+        # final_causal_df is the one corresponding with the final_roc
+        final_causal_df = causal_df_unified_list[roc_scores.index(final_roc)]
 
         return final_roc, final_causal_df
 
@@ -1639,7 +1641,9 @@ class IterativeTD2C():
             print('Final Iteration using the Arbitrary method with Decreasing mode:')
             final_roc, final_causal_df = self.final_iteration(best_edges)
             print()
-            print('Most improved results:')
+            print('°°°°°°°°°°°°°°°°°°°°°°°')
+            print(' Most improved results ')
+            print('°°°°°°°°°°°°°°°°°°°°°°°')
             print()
             print('ROC-AUC score:')
             print(final_roc)
@@ -1680,7 +1684,11 @@ class IterativeTD2C():
             
             # Iterative TD2C ####################################################
             input_folder = self.data_folder
-            output_folder = self.descr_folder + f'final_estimate/'        
+            output_folder = self.descr_folder + 'final_estimate/'   
+
+            if not os.path.exists(output_folder):
+                os.makedirs(output_folder)
+     
 
             # Descriptors Generation ############################################
             # List of files to process
@@ -1725,7 +1733,7 @@ class IterativeTD2C():
                         cmi='original',
                         mb_estimator= 'iterative',
                         top_vars=self.top_vars,
-                        causal_df=causal_df_unified
+                        causal_df=causal_df_unified[0]
                     )
 
                 d2c.initialize()  # Initializes the D2C object
@@ -1770,7 +1778,7 @@ class IterativeTD2C():
 
             # we create a dictionary to store the results
             dfs = []
-            descriptors_root = self.descr_folder + f'final_estimate/'
+            descriptors_root = self.descr_folder + 'final_estimate/'
 
             # Create the folder if it doesn't exist
             if not os.path.exists(descriptors_root):
@@ -1870,20 +1878,23 @@ class IterativeTD2C():
                     # globals()[m4][gen_process_number] = f1s
 
             # pickle everything
-            output_folder = self.results_folder + f'journals/final_estimate/'
+            output_folder = self.results_folder + 'journals/final_estimate/'
+
+            if not os.path.exists(output_folder):
+                os.makedirs(output_folder)
 
             # Create the folder if it doesn't exist
             if not os.path.exists(output_folder):
                 os.makedirs(output_folder)
 
-            with open(os.path.join(output_folder, f'journal_results_td2c_R_N5.pkl'), 'wb') as f:
+            with open(os.path.join(output_folder, 'journal_results_td2c_R_N5.pkl'), 'wb') as f:
                 everything = (globals()[m1], causal_df_1) #, globals()[m2], globals()[m3], globals()[m4]
                 pickle.dump(everything, f)
 
             # Load results #####################################################################################
-            input_folder = self.results_folder + f'journals/final_estimate/'
+            input_folder = self.results_folder + 'journals/final_estimate/'
 
-            with open(os.path.join(input_folder, f'journal_results_td2c_R_N5.pkl'), 'rb') as f:
+            with open(os.path.join(input_folder, 'journal_results_td2c_R_N5.pkl'), 'rb') as f:
                 TD2C_1_rocs_process, causal_df_1 = pickle.load(f) # , TD2C_1_precision_process, TD2C_1_recall_process, TD2C_1_f1_process
 
 
@@ -1921,6 +1932,10 @@ class IterativeTD2C():
 
             # save the plot in folder
             output_folder = self.results_folder + 'plots/final_estimate/'
+            
+            if not os.path.exists(output_folder):
+                os.makedirs(output_folder)
+
             plt.savefig(output_folder + f'FINAL_ROC_AUC_scores_TD2C_{self.method}_iterations_{self.size_causal_df}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag_{strategy}.pdf')
 
             print()
