@@ -130,6 +130,18 @@ class DataLoader():
         self.observations = self._flatten(loaded_observations)
         self.dags = self._flatten(loaded_dags)
 
+    def from_pickle_causal_df(self, causal_df_path):
+        """
+        Data loader from a data file.
+
+        Parameters:
+        - data_path (str): The path to the data file.
+        """
+        with open(causal_df_path, 'rb') as f:
+            loaded_causal_dfs = pickle.load(f) #third element is neighbors, not used from this point on
+        return self._flatten(loaded_causal_dfs)
+
+
     def from_tsbuilder(self, ts_builder):
         """
         Data loader from a TimeSeriesBuilder object. 

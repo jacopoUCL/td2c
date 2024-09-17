@@ -20,7 +20,7 @@ import time
 ################################################################################################################################### 
 
 class MarkovBlanketEstimator:
-    def __init__(self, size=5, n_variables=5, maxlags=5, verbose=True, top_vars=3, causal_df=None):
+    def __init__(self, size=5, n_variables=5, maxlags=5, verbose=True, top_vars=3):
         """
         Initializes the Markov Blanket Estimator with specified parameters.
         
@@ -35,7 +35,6 @@ class MarkovBlanketEstimator:
         self.n_variables = n_variables
         self.maxlags = maxlags
         self.top_vars = top_vars
-        self.causal_df = causal_df
 
     def column_based_correlation(self, X, Y):
         """
@@ -552,7 +551,7 @@ class MarkovBlanketEstimator:
     #     mb = mb.astype(int)
     #     return mb
     
-    def estimate_iterative(self, dataset, node): # OFFICIAL BUT IN THEORY FASTER
+    def estimate_iterative(self, causal_df, dataset, node): # OFFICIAL BUT IN THEORY FASTER
         '''
         Estimates the Markov Blanket (MB) for a given node.
         Adds nodes implicated in the most probable causal edges with the target node.
@@ -569,11 +568,11 @@ class MarkovBlanketEstimator:
             mb.add(node - self.n_variables)
 
         # Check if the node is in either 'edge_dest' or 'edge_source' columns
-        if not ((self.causal_df['edge_dest'] == node).any() or (self.causal_df['edge_source'] == node).any()):
+        if not ((causal_df['edge_dest'] == node).any() or (causal_df['edge_source'] == node).any()):
             # If node is not in either column, return mb as a sorted numpy array
             return np.array(sorted(mb), dtype=int) 
         
-        filtered_df = self.causal_df[(self.causal_df['edge_dest'] == node) | (self.causal_df['edge_source'] == node)]
+        filtered_df = causal_df[(causal_df['edge_dest'] == node) | (causal_df['edge_source'] == node)]
 
         # Add both edge_dest and edge_source columns to the Markov Blanket in one go
         mb.update(filtered_df['edge_source'][filtered_df['edge_dest'] == node])
