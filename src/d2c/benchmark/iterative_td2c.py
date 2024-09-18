@@ -671,15 +671,6 @@ class IterativeTD2C():
                         causal_df_1[process_id][graph_id] = graph_data[['process_id', 'graph_id', 'edge_source', 'edge_dest', 'y_pred_proba']]
                         causal_df_1[process_id][graph_id].reset_index(drop=True, inplace=True)
 
-                # first non-empty element in causal_df_1
-                for process_id, process_data in causal_df_1.items():
-                    for graph_id, graph_data in process_data.items():
-                        if graph_data.shape[0] > 0:
-                            causal_df_1_non_empty = causal_df_1[process_id][graph_id]
-                            break
-
-                print(f'Example causal_df_1: {causal_df_1_non_empty}')
-
                 # # Unify causal_df #################################################################################
                 # input_folder = self.results_folder + f'metrics/estimate_{i}/'
 
@@ -1150,16 +1141,23 @@ class IterativeTD2C():
                 with open(os.path.join(output_folder, f'causal_df_top_{self.k}_td2c_R_N5_unified.pkl'), 'wb') as f:
                     pickle.dump(causal_df_1, f)
                 
+                # first non-empty element in causal_df_1
+                for process_id, process_data in causal_df_1.items():
+                    for graph_id, graph_data in process_data.items():
+                        if graph_data.shape[0] == self.size_causal_df:
+                            causal_df_1_non_empty = causal_df_1[process_id][graph_id]
+                            break
+
                 # print the resultant causal_df
                 if i != self.it:
                     print()
                     print(f'Example of most relevant Edges that will be added in the next iteration:')
-                    print(causal_df_1[1][0])
+                    print(causal_df_1_non_empty)
                     print()
                 else:
                     print()
                     print(f'Example of most relevant Edges for the last iteration:')
-                    print(causal_df_1[1][0])
+                    print(causal_df_1_non_empty)
                     print()
                     print('End of iterations.')
 
