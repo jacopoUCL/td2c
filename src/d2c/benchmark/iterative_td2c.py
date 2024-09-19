@@ -203,7 +203,7 @@ class IterativeTD2C():
 
             # Save causal_df _____________________________________________________________________________________
 
-            self.save_causal_df(i, causal_df)
+            self.save_causal_df(i, causal_df, causal_dfs)
 
             # Print Best edges found in causal_df ________________________________________________________________
             
@@ -558,9 +558,13 @@ class IterativeTD2C():
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
 
-        # Save the causal_df
+        # Save the causal_df and causal_dfs in a pickle file
         with open(os.path.join(output_folder, f'causal_df_top_{self.k}_td2c_R_N5.pkl'), 'wb') as f:
-            pickle.dump(causal_df, causal_dfs, f)
+            pickle.dump(causal_df, f)
+
+        with open(os.path.join(output_folder, f'causal_dfs_top_{self.k}_td2c_R_N5.pkl'), 'wb') as f:
+            pickle.dump(causal_dfs, f)
+
 
     def print_best_edges(self, causal_df, i):
 
