@@ -122,6 +122,9 @@ class IterativeTD2C():
         if self.k < 1:
             print('Please provide a value greater than 0 for k')
             return
+        if self.k < 10:
+            print('We suggest you to keep k higher than 10 for a better performance')
+            return
         if self.it < 1:
             print('Please provide a value greater than 0 for it')
             return
@@ -686,13 +689,16 @@ class IterativeTD2C():
                         ############# PRELIMINARY OPERATIONS #############
 
                         # keep only top k y_pred_proba
-                        causal_df_1[process_id][graph_id] = graph_data.nlargest(self.k, 'y_pred_proba')
+                        graph_data = graph_data.nlargest(self.k, 'y_pred_proba')
                         # drop rows with y_pred_proba < 0.6
-                        causal_df_1[process_id][graph_id] = graph_data[graph_data['y_pred_proba'] >= 0.6]
+                        graph_data = graph_data[graph_data['y_pred_proba'] >= 0.6]
                         # for each causal_df keep only process_id, graph_id, edge_source, edge_dest and y_pred_proba
-                        causal_df_1[process_id][graph_id] = graph_data[['process_id', 'graph_id', 'edge_source', 'edge_dest', 'y_pred_proba']]
+                        graph_data = graph_data[['process_id', 'graph_id', 'edge_source', 'edge_dest', 'y_pred_proba']]
                         # reset index
-                        causal_df_1[process_id][graph_id].reset_index(drop=True, inplace=True)
+                        graph_data.reset_index(drop=True, inplace=True)
+                        
+                        # assign the processed graph_data back to causal_df_1
+                        causal_df_1[process_id][graph_id] = graph_data
 
 
                         ############### USE THE STRATEGIES ###############
@@ -1172,7 +1178,7 @@ class IterativeTD2C():
                     os.makedirs(output_folder)
 
                 # Save the causal_df
-                with open(os.path.join(output_folder, f'causal_df_top_{self.k}_td2c_R_N5_unified.pkl'), 'wb') as f:
+                with open(os.path.join(output_folder, f'causal_df_top_{self.k}_td2c_R_N5.pkl'), 'wb') as f:
                     pickle.dump(causal_df_1, f)
 
                 # Print Best edges found in causal_df __________________________________________________________________________________________________________________________________________________________________
