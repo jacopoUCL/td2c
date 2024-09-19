@@ -79,18 +79,15 @@ class IterativeTD2C():
     2. Average ROC-AUC scores for each iteration (saved in results folder as csv file)
     """
 
-    def __init__(self, method = 'ts', k = 1, it = 6, top_vars = 3, treshold = False, N_JOBS = 50, noise_std_filter = 0.01,
-                 treshold_value = 0.9, size_causal_df = 3, COUPLES_TO_CONSIDER_PER_DAG = -1, arbitrary = False, 
-                 performative = False, adaptive = False, adaptive_mode = "Balancing", performative_mode = "More_less", 
-                 arbitrary_mode = "Increasing", maxlags = 5, SEED = 42, MB_SIZE = 2, max_neighborhood_size_filter = 2, 
-                 data_folder = 'home/data/', descr_folder = 'home/descr/', results_folder = 'home/results/'):
+    def __init__(self, method = 'ts', k = 1, it = 6, top_vars = 3, N_JOBS = 50, noise_std_filter = 0.01, 
+                 size_causal_df = 3, COUPLES_TO_CONSIDER_PER_DAG = -1, maxlags = 5, SEED = 42, MB_SIZE = 2, 
+                 max_neighborhood_size_filter = 2, data_folder = 'home/data/', descr_folder = 'home/descr/', 
+                 results_folder = 'home/results/', strategy = 'Classic'):
         
         self.method = method
         self.k = k
         self.it = it
         self.top_vars = top_vars
-        self.treshold = treshold
-        self.treshold_value = treshold_value
         self.size_causal_df = size_causal_df
         self.data_folder = data_folder
         self.descr_folder = descr_folder
@@ -102,18 +99,12 @@ class IterativeTD2C():
         self.max_neighborhood_size_filter = max_neighborhood_size_filter
         self.noise_std_filter = noise_std_filter
         self.N_JOBS = N_JOBS
-        self.adaptive = adaptive
-        self.adaptive_mode = adaptive_mode
-        self.performative = performative
-        self.performative_mode = performative_mode
-        self.arbitrary = arbitrary
-        self.arbitrary_mode = arbitrary_mode
-
+        self.strategy = strategy
         np.random.seed(self.SEED)
 
     def param_check(self):
         # verify parameters
-        if self.method == None or self.k == None or self.it == None or self.top_vars == None or self.treshold == None or self.treshold_value == None or self.size_causal_df == None or self.data_folder == None or self.descr_folder == None or self.results_folder == None or self.COUPLES_TO_CONSIDER_PER_DAG == None or self.maxlags == None or self.SEED == None or self.MB_SIZE == None or self.max_neighborhood_size_filter == None or self.noise_std_filter == None or self.N_JOBS == None or self.adaptive == None:
+        if self.method == None or self.k == None or self.it == None or self.top_vars == None or self.size_causal_df == None or self.data_folder == None or self.descr_folder == None or self.results_folder == None or self.COUPLES_TO_CONSIDER_PER_DAG == None or self.maxlags == None or self.SEED == None or self.MB_SIZE == None or self.max_neighborhood_size_filter == None or self.noise_std_filter == None or self.N_JOBS == None or self.strategy == None:
             print('Please provide the correct parameters')
             return
         if self.method not in ['ts', 'original', 'ts_rank', 'ts_rank_2', 'ts_rank_3', 'ts_rank_4', 'ts_rank_5', 'ts_rank_6', 'ts_rank_7', 'ts_past', 'ts_rank_no_count']:
@@ -130,12 +121,6 @@ class IterativeTD2C():
             return
         if self.top_vars < 1:
             print('Please provide a value greater than 0 for top_vars')
-            return
-        if self.treshold not in [True, False]:
-            print('Please provide a boolean value for treshold')
-            return
-        if self.treshold == True and self.treshold_value < 0.5:
-            print('Please provide a value greater than 0.5 for treshold_value')
             return
         if self.size_causal_df < 1:
             print('Please provide a value greater than 0 for size_causal_df')
@@ -167,194 +152,89 @@ class IterativeTD2C():
         if self.N_JOBS < 1:
             print('Please provide a value greater than 0 for N_JOBS')
             return
-        if self.adaptive not in ['Adding', 'Subtracting', 'Balancing', "try", "Random", False,  True]:
-            print('Please provide the correct value for adaptive')
-            return
-        if self.performative not in ['More_Less', 'More', 'Tail', False, True]:
-            print('Please provide the correct value for performative')
-            return
-        if self.arbitrary not in ['Increasing', 'Decreasing', 'Common', False, True]:
-            print('Please provide the correct value for arbitrary')
-            return
-        if self.adaptive == 'Adding' and self.size_causal_df  > 5:
-            print('Please provide a value less than 5 for size_causal_df if adaptive is set to Adding')
-            return
-        if self.adaptive == 'Subtracting' and self.size_causal_df  < 3:
-            print('Please provide a value greater than 3 for size_causal_df if adaptive is set to Subtracting')
-            return
-        if self.arbitrary == 'Increasing' and self.size_causal_df  > 5:
-            print('Please provide a value less than 5 for size_causal_df if arbitrary is set to Increasing')
-            return
-        if self.arbitrary == 'Decreasing' and self.size_causal_df  < 5:
-            print('Please provide a value greater than 5 for size_causal_df if arbitrary is set to Decreasing')
-            return
-        # if any combination of adaptive, performative, arbitrary and trheshold is True stop the function
-        if self.adaptive == True and self.performative == True:
-            print('Please provide only one parameter between adaptive and performative')
-            return
-        if self.adaptive == True and self.arbitrary == True:
-            print('Please provide only one parameter between adaptive and arbitrary')
-            return
-        if self.adaptive == True and self.treshold == True:
-            print('Please provide only one parameter between adaptive and treshold')
-            return
-        if self.performative == True and self.arbitrary == True:
-            print('Please provide only one parameter between performative and arbitrary')
-            return
-        if self.performative == True and self.treshold == True:
-            print('Please provide only one parameter between performative and treshold')
-            return
-        if self.arbitrary == True and self.treshold == True:
-            print('Please provide only one parameter between arbitrary and treshold')
-            return
-        if self.adaptive == True and self.performative == True and self.arbitrary == True and self.treshold == True:
-            print('Please provide only one parameter between adaptive, performative, arbitrary and treshold')
-            return
-        if self.adaptive == True and self.performative == True and self.arbitrary == True:
-            print('Please provide only one parameter between adaptive, performative and arbitrary')
-            return
-        if self.adaptive == True and self.performative == True and self.treshold == True:
-            print('Please provide only one parameter between adaptive, performative and treshold')
-            return
-        if self.adaptive == True and self.arbitrary == True and self.treshold == True:
-            print('Please provide only one parameter between adaptive, arbitrary and treshold')
-            return
-        if self.performative == True and self.arbitrary == True and self.treshold == True:
-            print('Please provide only one parameter between performative, arbitrary and treshold')
-            return
-        if self.adaptive == True and self.performative == True and self.arbitrary == True and self.treshold == True:
-            print('Please provide only one parameter between adaptive, performative, arbitrary and treshold')
+        if self.strategy not in ["Classic", "More-Less", "More", "Tail", "Adding", "Subtracting", "Balancing1", "Balancing2", "Increasing", "Decreasing", "Random", "Treshold", "try"]:
+            print('Please provide the correct strategy: Classic, More-Less, More, Tail, Adding, Subtracting, Balancing1, Balancing2, Increasing, Decreasing, Random, Treshold', 'try')
             return
 
     def start(self):
 
         # Description of the iteration
         print()
-        print(f'Iterative TD2C - Method: {self.method} - Max iterations: {self.it} - Variables to keep per DAG: {self.k} - Top Variables: {self.top_vars} - Treshold: {self.treshold} - Size of Causal DF: {self.size_causal_df}')
+        print(f'Iterative TD2C - Method: {self.method} - Max iterations: {self.it} - Variables to keep per DAG: {self.k} - Top Variables: {self.top_vars} - Size of Causal DF: {self.size_causal_df}')
         print()
     
         # Computational time estimation
-        if self.performative == True and self.performative_mode == "More_Less":
-            print('This iteration could last forefer...')
-        elif self.performative == True and self.performative_mode == "Tail":
-            if self.COUPLES_TO_CONSIDER_PER_DAG == -1 and self.treshold == False:
-                print('Using all couples for each DAG')
-                print(f'This iteration will take approximately {8.5*self.it + 0.3*(8.5*self.it)} minutes')
-                print()
-            elif self.COUPLES_TO_CONSIDER_PER_DAG == -1 and self.treshold == True:
-                print(f'Using all couples for each DAG and a pred.proba higher than {self.treshold_value}')
-                print(f'This iteration will take approximately {10.5*self.it + 0.3*(10.5*self.it)} minutes')
-                print()
-            elif self.COUPLES_TO_CONSIDER_PER_DAG != -1 and self.size_causal_df == 5:
-                print(f'Using the top {self.COUPLES_TO_CONSIDER_PER_DAG} couples for each DAG')
-                print(f'This iteration will take approximately {4*self.it + 0.3*(4*self.it)} minutes')
-                print()
-            elif self.COUPLES_TO_CONSIDER_PER_DAG != -1 and self.size_causal_df < 5:
-                print(f'Using the top {self.COUPLES_TO_CONSIDER_PER_DAG} couples for each DAG')
-                print(f'This iteration will take approximately {3.5*self.it + 0.3*(3.5*self.it)} minutes')
-                print()
-            elif self.COUPLES_TO_CONSIDER_PER_DAG != -1 and self.size_causal_df > 5:
-                print(f'Using the top {self.COUPLES_TO_CONSIDER_PER_DAG} couples for each DAG')
-                print(f'This iteration will take approximately {4.5*self.it + 0.3*(4.5*self.it)} minutes')
-                print()
-        else:
-            if self.COUPLES_TO_CONSIDER_PER_DAG == -1 and self.treshold == False:
-                print('Using all couples for each DAG')
-                print(f'This iteration will take approximately {8.5*self.it} minutes')
-                print()
-            elif self.COUPLES_TO_CONSIDER_PER_DAG == -1 and self.treshold == True:
-                print(f'Using all couples for each DAG and a pred.proba higher than {self.treshold_value}')
-                print(f'This iteration will take approximately {10.5*self.it} minutes')
-                print()
-            elif self.COUPLES_TO_CONSIDER_PER_DAG != -1 and self.size_causal_df == 5:
-                print(f'Using the top {self.COUPLES_TO_CONSIDER_PER_DAG} couples for each DAG')
-                print(f'This iteration will take approximately {4*self.it} minutes')
-                print()
-            elif self.COUPLES_TO_CONSIDER_PER_DAG != -1 and self.size_causal_df < 5:
-                print(f'Using the top {self.COUPLES_TO_CONSIDER_PER_DAG} couples for each DAG')
-                print(f'This iteration will take approximately {3.5*self.it} minutes')
-                print()
-            elif self.COUPLES_TO_CONSIDER_PER_DAG != -1 and self.size_causal_df > 5:
-                print(f'Using the top {self.COUPLES_TO_CONSIDER_PER_DAG} couples for each DAG')
-                print(f'This iteration will take approximately {4.5*self.it} minutes')
-                print()
-
-        return
 
     def strategy(self):
 
         # Description of the method used
-        if self.performative == True and self.performative_mode == "More_Less":
-            print('Strategy: Performative - Mode: More_Less')
+        if self.strategy == "Classic":
+            strategy = "Classic TD2C"
+            print("Strategy: Classic")
             print()
-            strategy = "Performative-More_Less"
-        elif self.performative == True and self.performative_mode == "More":
-            print('Strategy: Performative - Mode: More')
+        elif self.strategy == "More_Less":
+            strategy = "Adaptive: More-Less"
+            print("Strategy: Adaptive - More-Less")
             print()
-            strategy = "Performative-More"
-        elif self.performative == True and self.performative_mode == "Tail":
-            print('Strategy: Performative - Mode: Tail')
+        elif self.strategy == "More":
+            strategy = "Adaptive: More"
+            print("Strategy: Adaptive - More")
             print()
-            strategy = "Performative-Tail"
-        elif self.adaptive == True and self.adaptive_mode == "Adding":
-            print('Strategy: Adaptive - Mode: Adding')
+        elif self.strategy == "Tail":
+            strategy = "Adaptive: Tail"
+            print("Strategy: Adaptive - Tail")
             print()
-            strategy = "Adaptive-Adding"
-        elif self.adaptive == True and self.adaptive_mode == "Subtracting":
-            print('Strategy: Adaptive - Mode: Subtracting')
+        elif self.strategy == "Adding":
+            strategy = "Adaptive: Adding"
+            print("Strategy: Adaptive - Adding")
             print()
-            strategy = "Adaptive-Subtracting"
-        elif self.adaptive == True and self.adaptive_mode == "Balancing1":
-            print('Strategy: Adaptive - Mode: Balancing1')
+        elif self.strategy == "Subtracting":
+            strategy = "Adaptive: Subtracting"
+            print("Strategy: Adaptive - Subtracting")
             print()
-            strategy = "Adaptive-Balancing1"
-        elif self.adaptive == True and self.adaptive_mode == "Balancing2":
-            print('Strategy: Adaptive - Mode: Balancing2')
+        elif self.strategy == "Balancing1":
+            strategy = "Adaptive: Balancing1"
+            print("Strategy: Adaptive - Balancing1")
             print()
-            strategy = "Adaptive-Balancing2"
-        elif self.arbitrary == True and self.arbitrary_mode == "Increasing":
-            print('Strategy: Arbitrary - Mode: Increasing')
+        elif self.strategy == "Balancing2":
+            strategy = "Adaptive: Balancing2"
+            print("Strategy: Adaptive - Balancing2")
             print()
-            strategy = "Arbitrary-Increasing"
-        elif self.arbitrary == True and self.arbitrary_mode == "Decreasing":
-            print('Strategy: Arbitrary - Mode: Decreasing')
+        elif self.strategy == "Increasing":
+            strategy = "Arbitrary: Increasing"
+            print("Strategy: Arbitrary - Increasing")
             print()
-            strategy = "Arbitrary-Decreasing"
-        elif self.arbitrary == True and self.arbitrary_mode == "Common":
-            print('Strategy: Arbitrary - Mode: Common')
+        elif self.strategy == "Decreasing":
+            strategy = "Arbitrary: Decreasing"
+            print("Strategy: Arbitrary - Decreasing")
             print()
-            strategy = "Arbitrary-Common"
-        elif self.adaptive == True and self.adaptive_mode == "Random":
-            print('Strategy: Adaptive - Mode: Random')
+        elif self.strategy == "Random":
+            strategy = "Adaptive: Random"
+            print("Strategy: Adaptive - Random")
             print()
-            strategy = "Adaptive-Random"
-        elif self.treshold == True:
-            print('Strategy: Treshold')
-            print()
+        elif self.strategy == "Treshold":
             strategy = "Treshold"
-        else:
-            print('Strategy: Classic')
+            print("Strategy: Treshold")
             print()
-            strategy = "Classic"
+        elif self.strategy == "try":
+            strategy = "Adaptive: try"
+            print("Strategy: Adaptive - try")
+            print
         
         return strategy
 
     def response(self):
         # Start the iteration?
         if self.it < 6:
-            if self.performative == True and self.performative_mode == "Tail":
-                print()
-                print('########################################################################################')
-                print("  WARNING: The number of iterations is less than 6. The results might not be accurate.  ")
-                print('########################################################################################')
-                print()
-                response = input("Do you want to continue with the rest of the function? (y/n): ").strip().lower()
-                print()
-            else:
-                print()
-                response = input("Do you want to continue with the rest of the function? (y/n): ").strip().lower()
-                print()
+            print()
+            print('########################################################################################')
+            print("  WARNING: The number of iterations is less than 6. The results might not be accurate.  ")
+            print('########################################################################################')
+            print()
+            response = input("Do you want to continue with the rest of the function? (y/n): ").strip().lower()
+            print()
         else:
+            print()
             response = input("Do you want to continue with the rest of the function? (y/n): ").strip().lower()
             print()
 
@@ -379,11 +259,11 @@ class IterativeTD2C():
             tail = 0
             operation = ""
             operation_reg = []
-            if self.performative == True and self.performative_mode == "More_Less":
+            if self.strategy == "More_Less":
                 self.it = 1000
-            elif self.performative == True and self.performative_mode == "More":
+            elif self.strategy == "More":
                 self.it = 1000
-            elif self.performative == True and self.performative_mode == "Tail":
+            elif self.strategy == "Tail":
                 it_tail = self.it
                 if self.it < 6:
                     self.it = self.it + 3
@@ -694,7 +574,7 @@ class IterativeTD2C():
                         # keep only top k y_pred_proba
                         graph_data = graph_data.nlargest(self.k, 'y_pred_proba')
                         # drop rows with y_pred_proba < 0.6
-                        # graph_data = graph_data[graph_data['y_pred_proba'] >= 0.6]
+                        graph_data = graph_data[graph_data['y_pred_proba'] >= 0.6]
                         # for each causal_df keep only process_id, graph_id, edge_source, edge_dest and y_pred_proba
                         graph_data = graph_data[['process_id', 'graph_id', 'edge_source', 'edge_dest', 'y_pred_proba']]
                         # reset index
@@ -797,7 +677,7 @@ class IterativeTD2C():
                             elif self.adaptive_mode == "Random":
 
                                 edge_source = np.random.randint(6, 30, graph_size)
-                                edge_dest = np.array([np.random.randint(1, max(2, source-4)) for source in edge_source])
+                                edge_dest = np.random.randint(1,6)
 
                                 y_pred_proba = 0.99
 
