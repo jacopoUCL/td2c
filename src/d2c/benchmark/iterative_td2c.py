@@ -328,6 +328,10 @@ class IterativeTD2C():
             print('Method: Adaptive - Mode: Random')
             print()
             strategy = "Adaptive-Random"
+        elif self.treshold == True:
+            print('Method: Treshold')
+            print()
+            strategy = "Treshold"
         else:
             print('Method: Classic')
             print()
