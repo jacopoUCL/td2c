@@ -565,7 +565,6 @@ class IterativeTD2C():
         with open(os.path.join(output_folder, f'causal_dfs_top_{self.k}_td2c_R_N5.pkl'), 'wb') as f:
             pickle.dump(causal_dfs, f)
 
-
     def print_best_edges(self, causal_df, i):
 
         ################ Unify causal_df #################
@@ -582,7 +581,7 @@ class IterativeTD2C():
         # concatenate all the dataframes in the list in one dataframe
         causal_unif = pd.concat(dfs, axis=0).reset_index(drop=True)
         # sort in ascending order by process_id, graph_id, edge_source and edge_dest
-        causal_unif.sort_values(by=['process_id', 'graph_id', 'edge_source', 'edge_dest'], inplace=True)
+        causal_unif.sort_values(by=['process_id', 'graph_id', 'edge_source', 'edge_dest', 'y_pred_proba'], inplace=True)
         # sort for prediction probability
         causal_unif.sort_values(by=['y_pred_proba'], ascending=False, inplace=True)
         # keep top 5
