@@ -55,12 +55,9 @@ class IterativeTD2C():
             print()
             print("Ok! Let's start the iteration.")
             print()
-            roc_scores, causal_df = self.iteration()
+            roc_scores, causal_dfs = self.iteration()
             print('roc_scores:')
             print(roc_scores)
-            print()
-            print('causal_df:')
-            print(causal_df)
         
         elif response in ['no', 'n', 'No', 'N']:
             print()
@@ -79,6 +76,7 @@ class IterativeTD2C():
         self.df_scores(roc_scores)
 
         # plot ground truth with the causal_df to compare
+        self.plot_ground_truth(roc_scores, causal_dfs)
 
 
 
@@ -209,7 +207,7 @@ class IterativeTD2C():
             
             self.print_best_edges(causal_df, i)
 
-            return roc_scores, causal_dfs
+        return roc_scores, causal_dfs
 
 
     def initialization(self, i):
@@ -291,8 +289,7 @@ class IterativeTD2C():
                     cmi='original',
                     mb_estimator = 'iterative',
                     top_vars = self.top_vars,
-                    causal_df_list = causal_dfs[i-1]
-                    # dataloader.from_pickle_causal_df(os.path.join(self.results_folder, f'metrics/estimate_{i-1}/', f'causal_df_top_{self.k}_td2c_R_N5.pkl'))
+                    causal_df_list =  dataloader.from_pickle_causal_df(os.path.join(self.results_folder, f'causal_dfs/estimate_{i-1}/', f'causal_df_top_{self.k}_td2c_R_N5.pkl'))
                 )
 
             d2c.initialize()  # Initializes the D2C object
@@ -508,8 +505,10 @@ class IterativeTD2C():
             for graph_id, graph_data in process_data.items():
 
                 # keep only top k y_pred_proba
-                graph_data = graph_data.nlargest(self.k, 'y_pred_proba')
-                graph_data = graph_data[['process_id', 'graph_id', 'edge_source', 'edge_dest']]
+                graph_data = graph_data[graph_data['y_pred_proba'] > 0.5]
+                si = max(self.k, graph_data.shape[0])
+                graph_data = graph_data.nlargest(si, 'y_pred_proba')
+                graph_data = graph_data[['process_id', 'graph_id', 'edge_source', 'edge_dest', 'y_pred_proba']]
                 graph_data.reset_index(drop=True, inplace=True)
                 # assign the processed graph_data back to causal_df_1
                 causal_df[process_id][graph_id] = graph_data
@@ -581,9 +580,7 @@ class IterativeTD2C():
         # concatenate all the dataframes in the list in one dataframe
         causal_unif = pd.concat(dfs, axis=0).reset_index(drop=True)
         # sort in ascending order by process_id, graph_id, edge_source and edge_dest
-        causal_unif.sort_values(by=['process_id', 'graph_id', 'edge_source', 'edge_dest', 'y_pred_proba'], inplace=True)
-        # sort for prediction probability
-        causal_unif.sort_values(by=['y_pred_proba'], ascending=False, inplace=True)
+        causal_unif.sort_values(by=['process_id', 'graph_id', 'edge_source', 'edge_dest', 'y_pred_proba'], ascending=[True, True, True, True, False], inplace=True)
         # keep top 5
         causal_unif = causal_unif.nlargest(5, 'y_pred_proba')
         # reset index
@@ -657,7 +654,7 @@ class IterativeTD2C():
             plt.savefig(output_folder + f'ROC_AUC_scores_TD2C_{self.method}_{len(roc_scores)}_iterations_{self.k}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag_{self.strategy}.pdf')
             plt.show()
 
-    def df_scores(self, roc_scores, strategy):
+    def df_scores(self, roc_scores):
 
         if roc_scores == None or self.method == None or self.it == None or self.COUPLES_TO_CONSIDER_PER_DAG == None or self.k == None or self.strategy == None:
             print('Please run iterative_td2c() function first')
@@ -671,8 +668,10 @@ class IterativeTD2C():
 
             # save the df in a csv file
             output_folder = os.path.join(self.results_folder, 'metrics/')
-            roc_scores_df.to_csv(output_folder + f'roc_scores_TD2C_{self.method}_{len(roc_scores)}_iterations_{self.k}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag_{strategy}.csv', index=False)
+            roc_scores_df.to_csv(output_folder + f'roc_scores_TD2C_{self.method}_{len(roc_scores)}_iterations_{self.k}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag_{self.strategy}.csv', index=False)
             print(roc_scores_df)
         
         return roc_scores_df
     
+    def plot_ground_truth(self, roc_scores, causal_dfs):
+        return
