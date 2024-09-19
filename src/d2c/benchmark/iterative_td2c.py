@@ -285,55 +285,55 @@ class IterativeTD2C():
 
         # Description of the method used
         if self.performative == True and self.performative_mode == "More_Less":
-            print('Method: Performative - Mode: More_Less')
+            print('Strategy: Performative - Mode: More_Less')
             print()
             strategy = "Performative-More_Less"
         elif self.performative == True and self.performative_mode == "More":
-            print('Method: Performative - Mode: More')
+            print('Strategy: Performative - Mode: More')
             print()
             strategy = "Performative-More"
         elif self.performative == True and self.performative_mode == "Tail":
-            print('Method: Performative - Mode: Tail')
+            print('Strategy: Performative - Mode: Tail')
             print()
             strategy = "Performative-Tail"
         elif self.adaptive == True and self.adaptive_mode == "Adding":
-            print('Method: Adaptive - Mode: Adding')
+            print('Strategy: Adaptive - Mode: Adding')
             print()
             strategy = "Adaptive-Adding"
         elif self.adaptive == True and self.adaptive_mode == "Subtracting":
-            print('Method: Adaptive - Mode: Subtracting')
+            print('Strategy: Adaptive - Mode: Subtracting')
             print()
             strategy = "Adaptive-Subtracting"
         elif self.adaptive == True and self.adaptive_mode == "Balancing1":
-            print('Method: Adaptive - Mode: Balancing1')
+            print('Strategy: Adaptive - Mode: Balancing1')
             print()
             strategy = "Adaptive-Balancing1"
         elif self.adaptive == True and self.adaptive_mode == "Balancing2":
-            print('Method: Adaptive - Mode: Balancing2')
+            print('Strategy: Adaptive - Mode: Balancing2')
             print()
             strategy = "Adaptive-Balancing2"
         elif self.arbitrary == True and self.arbitrary_mode == "Increasing":
-            print('Method: Arbitrary - Mode: Increasing')
+            print('Strategy: Arbitrary - Mode: Increasing')
             print()
             strategy = "Arbitrary-Increasing"
         elif self.arbitrary == True and self.arbitrary_mode == "Decreasing":
-            print('Method: Arbitrary - Mode: Decreasing')
+            print('Strategy: Arbitrary - Mode: Decreasing')
             print()
             strategy = "Arbitrary-Decreasing"
         elif self.arbitrary == True and self.arbitrary_mode == "Common":
-            print('Method: Arbitrary - Mode: Common')
+            print('Strategy: Arbitrary - Mode: Common')
             print()
             strategy = "Arbitrary-Common"
         elif self.adaptive == True and self.adaptive_mode == "Random":
-            print('Method: Adaptive - Mode: Random')
+            print('Strategy: Adaptive - Mode: Random')
             print()
             strategy = "Adaptive-Random"
         elif self.treshold == True:
-            print('Method: Treshold')
+            print('Strategy: Treshold')
             print()
             strategy = "Treshold"
         else:
-            print('Method: Classic')
+            print('Strategy: Classic')
             print()
             strategy = "Classic"
         
@@ -360,7 +360,7 @@ class IterativeTD2C():
 
         return response
 
-    def iterative_td2c(self, response):
+    def iterative_td2c(self, response, strategy):
 
         #  INITIALIZE THE ITERATION ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         if response in ['yes', 'y', 'Yes', 'Y']:
@@ -648,7 +648,7 @@ class IterativeTD2C():
             
                 if self.adaptive_mode != "Random":
                     print()
-                    print(f'ROC-AUC score: {roc}')
+                    print(f'ROC-AUC score: {round(roc, 4)}')
                     print()
                 
                 # STOPPING CRITERIA 2: Using ROC-AUC score
@@ -677,7 +677,7 @@ class IterativeTD2C():
                             return
                 else:
                     print()
-                    print(f'ROC-AUC score: {roc}')
+                    print(f'ROC-AUC score: {round(roc, 4)}')
                     print()
 
 
@@ -691,11 +691,10 @@ class IterativeTD2C():
                     for graph_id, graph_data in process_data.items():
 
                         ############# PRELIMINARY OPERATIONS #############
-
                         # keep only top k y_pred_proba
                         graph_data = graph_data.nlargest(self.k, 'y_pred_proba')
                         # drop rows with y_pred_proba < 0.6
-                        graph_data = graph_data[graph_data['y_pred_proba'] >= 0.6]
+                        # graph_data = graph_data[graph_data['y_pred_proba'] >= 0.6]
                         # for each causal_df keep only process_id, graph_id, edge_source, edge_dest and y_pred_proba
                         graph_data = graph_data[['process_id', 'graph_id', 'edge_source', 'edge_dest', 'y_pred_proba']]
                         # reset index
@@ -707,6 +706,7 @@ class IterativeTD2C():
 
                         ############### USE THE STRATEGIES ###############
                         causal_df_unif_1 = graph_data
+                        graph_size = causal_df_unif_1.shape[0]
 
                         if self.treshold == True:
                             # drop rows with y_pred_proba < treshold_value
@@ -724,26 +724,6 @@ class IterativeTD2C():
                                     # Adjust size based on the comparison of ROC scores
                                     if roc_scores[i] < roc_scores[i-1]:
                                         previous_size += 1
-                                    # elif roc_scores[i] >= roc_scores[i-1]:
-                                    #     previous_size = previous_size # + 1
-
-                                    # Ensure size boundaries
-                                    previous_size = max(1, min(previous_size, 10))
-
-                                    # Select the top rows according to the adjusted size
-                                    causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-
-                                    # index reset
-                                    causal_df_unif_provv.reset_index(drop=True, inplace=True)
-
-                                    # check if causal_df_unif_1 is equal to any previous element in causal_df_unified list of dataframes and add 1 to its size 
-                                    # if it is until it is different
-                                    while any(causal_df_unif_provv.equals(df) for df in causal_df_permut):
-                                        previous_size += 1
-                                        causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                                        causal_df_unif_provv.reset_index(drop=True, inplace=True)
-
-                                    causal_df_unif_1 = causal_df_unif_provv
 
                             elif self.adaptive_mode == "Subtracting":
                                 # Initialize `previous_size` as the starting size for each iteration.
@@ -754,26 +734,6 @@ class IterativeTD2C():
                                     # Adjust size based on the comparison of ROC scores
                                     if roc_scores[i] < roc_scores[i-1]:
                                         previous_size = previous_size - 1
-                                    # elif roc_scores[i] >= roc_scores[i-1]:
-                                    #     previous_size = previous_size # + 1
-
-                                    # Ensure size boundaries
-                                    previous_size = max(1, min(previous_size, 15))
-
-                                    # Select the top rows according to the adjusted size
-                                    causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-
-                                    # index reset
-                                    causal_df_unif_provv.reset_index(drop=True, inplace=True)
-
-                                    # check if causal_df_unif_1 is equal to any previous element in causal_df_unified list of dataframes and add 1 to its size 
-                                    # if it is until it is different
-                                    while any(causal_df_unif_provv.equals(df) for df in causal_df_permut):
-                                        previous_size += 1
-                                        causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                                        causal_df_unif_provv.reset_index(drop=True, inplace=True)
-
-                                    causal_df_unif_1 = causal_df_unif_provv
 
                             elif self.adaptive_mode == "Balancing1":
                                 # Initialize `previous_size` as the starting size for each iteration.
@@ -790,34 +750,7 @@ class IterativeTD2C():
                                         if roc_scores[i] < roc_scores[i-1]:
                                             previous_size = previous_size - 1
 
-                                    # Ensure size boundaries
-                                    previous_size = max(1, min(previous_size, 10))
-
-                                    # Select the top rows according to the adjusted size
-                                    causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-
-                                    # index reset
-                                    causal_df_unif_provv.reset_index(drop=True, inplace=True)
-
-                                    # check if causal_df_unif_1 is equal to any previous element in causal_df_unified list of dataframes and add 1 to its size 
-                                    # if it is until it is different
-                                    while any(causal_df_unif_provv.equals(df) for df in causal_df_permut):
-                                        previous_size += 1
-                                        causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                                        causal_df_unif_provv.reset_index(drop=True, inplace=True)
-
-                                    causal_df_unif_1 = causal_df_unif_provv
-
                             elif self.adaptive_mode == "Balancing2":
-                                # for i ==1
-                                # Add 1 if the ROC is worse than the one before
-                                # for i > 1
-                                # Add 1 if the ROC is worse than the one before and:
-                                # The last operation was an addition, and the ROC improved
-                                # The last operation was a subtraction, and the ROC decreased.
-                                # Remove 1 if the ROC is worse than the one before and:
-                                # The last operation was an addition, and the ROC decreased.
-                                # The last operation was a subtraction, and the ROC improved.
                                 if i == 0:
                                     previous_size = self.size_causal_df
                                     causal_df_unif_1 = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
@@ -831,23 +764,6 @@ class IterativeTD2C():
                                     else:
                                         operation = "sub"
                                         operation_reg.append(operation)
-
-                                    previous_size = max(1, min(previous_size, 10))
-
-                                    # Select the top rows according to the adjusted size
-                                    causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-
-                                    # index reset
-                                    causal_df_unif_provv.reset_index(drop=True, inplace=True)
-
-                                    # check if causal_df_unif_1 is equal to any previous element in causal_df_unified list of dataframes and add 1 to its size 
-                                    # if it is until it is different
-                                    while any(causal_df_unif_provv.equals(df) for df in causal_df_permut):
-                                        previous_size += 1
-                                        causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                                        causal_df_unif_provv.reset_index(drop=True, inplace=True)
-
-                                    causal_df_unif_1 = causal_df_unif_provv
                                 else:
                                     if roc_scores[i] < roc_scores[i-1]:
                                         # index of the element in operation_reg != None with the highest index
@@ -871,24 +787,6 @@ class IterativeTD2C():
                                         operation = None
                                         operation_reg.append(operation)
 
-                                    # Ensure size boundaries
-                                    previous_size = max(1, min(previous_size, 15))
-
-                                    # Select the top rows according to the adjusted size
-                                    causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-
-                                    # index reset
-                                    causal_df_unif_provv.reset_index(drop=True, inplace=True)
-
-                                    # check if causal_df_unif_1 is equal to any previous element in causal_df_unified list of dataframes and add 1 to its size
-                                    # if it is until it is different
-                                    while any(causal_df_unif_provv.equals(df) for df in causal_df_permut):
-                                        previous_size += 1
-                                        causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                                        causal_df_unif_provv.reset_index(drop=True, inplace=True)
-
-                                    causal_df_unif_1 = causal_df_unif_provv
-
                             elif self.adaptive_mode == "try": # just to see if with same causal_df the roc score is the same, it is not because of the random forest
                                 if i == 0:
                                     previous_size = self.size_causal_df
@@ -897,9 +795,8 @@ class IterativeTD2C():
                                     causal_df_unif_1 = causal_df_unified[i-1]
                             
                             elif self.adaptive_mode == "Random":
-                                num_rows = causal_df_unif_1.shape[0]
 
-                                edge_source = np.random.randint(6, 30, num_rows)
+                                edge_source = np.random.randint(6, 30, graph_size)
                                 edge_dest = np.array([np.random.randint(1, max(2, source-4)) for source in edge_source])
 
                                 y_pred_proba = 0.99
@@ -915,17 +812,7 @@ class IterativeTD2C():
                                     causal_df_unif_1 = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
                                 else:
                                     if roc_0 - 0.04 < roc < roc_0 + 0.04:
-                                        causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                                        # index reset
-                                        causal_df_unif_provv.reset_index(drop=True, inplace=True)
-                                        # check if causal_df_unif_1 is equal to any previous element in causal_df_unified list of dataframes and add 1 to its size 
-                                        # if it is until it is different
-                                        while any(causal_df_unif_provv.equals(df) for df in causal_df_permut):
-                                            previous_size += 1
-                                            causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                                            causal_df_unif_provv.reset_index(drop=True, inplace=True)
-
-                                        causal_df_unif_1 = causal_df_unif_provv
+                                        pass
                                     else:
                                         return
                             
@@ -934,30 +821,10 @@ class IterativeTD2C():
                                     previous_size = self.size_causal_df
                                     causal_df_unif_1 = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
                                 elif i < 5:
-                                        causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                                        # index reset
-                                        causal_df_unif_provv.reset_index(drop=True, inplace=True)
-                                        # check if causal_df_unif_1 is equal to any previous element in causal_df_unified list of dataframes and add 1 to its size 
-                                        # if it is until it is different
-                                        while any(causal_df_unif_provv.equals(df) for df in causal_df_permut):
-                                            previous_size += 1
-                                            causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                                            causal_df_unif_provv.reset_index(drop=True, inplace=True)
-
-                                        causal_df_unif_1 = causal_df_unif_provv
+                                    pass
                                 else:
                                     if roc_scores.mean() < roc_0:
-                                        causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                                        # index reset
-                                        causal_df_unif_provv.reset_index(drop=True, inplace=True)
-                                        # check if causal_df_unif_1 is equal to any previous element in causal_df_unified list of dataframes and add 1 to its size 
-                                        # if it is until it is different
-                                        while any(causal_df_unif_provv.equals(df) for df in causal_df_permut):
-                                            previous_size += 1
-                                            causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                                            causal_df_unif_provv.reset_index(drop=True, inplace=True)
-
-                                        causal_df_unif_1 = causal_df_unif_provv
+                                        pass
                                     else:
                                         return
                         
@@ -968,17 +835,7 @@ class IterativeTD2C():
                                     previous_size = self.size_causal_df
                                     causal_df_unif_1 = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
                                 elif i != it_tail:
-                                    causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                                    # index reset
-                                    causal_df_unif_provv.reset_index(drop=True, inplace=True)
-                                    # check if causal_df_unif_1 is equal to any previous element in causal_df_unified list of dataframes and add 1 to its size 
-                                    # if it is until it is different
-                                    while any(causal_df_unif_provv.equals(df) for df in causal_df_permut):
-                                        previous_size += 1
-                                        causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                                        causal_df_unif_provv.reset_index(drop=True, inplace=True)
-
-                                    causal_df_unif_1 = causal_df_unif_provv
+                                    pass # do nothing
                                 else:
                                     if tail == 0:
                                         mean_roc_score = sum(roc_scores) / len(roc_scores)
@@ -989,39 +846,10 @@ class IterativeTD2C():
                                             # set size to the highest roc score
                                             previous_size = causal_df_unified[index].shape[0] + 1
                                             causal_df_unif_provv = causal_df_mid[index].nlargest(previous_size, 'y_pred_proba')
-
-                                            # check if causal_df_unif_1 is equal to any previous element in causal_df_unified list of dataframes and add 1 to its size
-                                            # if it is until it is different
-                                            while any(causal_df_unif_1.equals(df) for df in causal_df_permut):
-                                                previous_size += 1
-                                                causal_df_unif_1 = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                                                causal_df_unif_1.reset_index(drop=True, inplace=True)
-
-                                            causal_df_unif_provv = causal_df_unif_1
                                         else:
-                                            causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                                            # index reset
-                                            causal_df_unif_provv.reset_index(drop=True, inplace=True)
-                                            # check if causal_df_unif_1 is equal to any previous element in causal_df_unified list of dataframes and add 1 to its size 
-                                            # if it is until it is different
-                                            while any(causal_df_unif_provv.equals(df) for df in causal_df_permut):
-                                                previous_size += 1
-                                                causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                                                causal_df_unif_provv.reset_index(drop=True, inplace=True)
-
-                                            causal_df_unif_1 = causal_df_unif_provv
-                                    else: 
-                                        causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                                        # index reset
-                                        causal_df_unif_provv.reset_index(drop=True, inplace=True)
-                                        # check if causal_df_unif_1 is equal to any previous element in causal_df_unified list of dataframes and add 1 to its size 
-                                        # if it is until it is different
-                                        while any(causal_df_unif_provv.equals(df) for df in causal_df_permut):
-                                            previous_size += 1
-                                            causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                                            causal_df_unif_provv.reset_index(drop=True, inplace=True)
-
-                                        causal_df_unif_1 = causal_df_unif_provv
+                                            pass
+                                    else:
+                                        pass
 
                         elif self.arbitrary == True:
                             if self.arbitrary_mode == "Increasing":
@@ -1032,24 +860,6 @@ class IterativeTD2C():
                                 else:
                                     previous_size = previous_size + 1
 
-                                    # Ensure size boundaries
-                                    previous_size = max(1, min(previous_size, 15))
-
-                                    # Select the top rows according to the adjusted size
-                                    causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-
-                                    # index reset
-                                    causal_df_unif_provv.reset_index(drop=True, inplace=True)
-
-                                    # check if causal_df_unif_1 is equal to any previous element in causal_df_unified list of dataframes and add 1 to its size 
-                                    # if it is until it is different
-                                    while any(causal_df_unif_provv.equals(df) for df in causal_df_permut):
-                                        previous_size += 1
-                                        causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                                        causal_df_unif_provv.reset_index(drop=True, inplace=True)
-
-                                    causal_df_unif_1 = causal_df_unif_provv
-
                             elif self.arbitrary_mode == "Decreasing":
                                 # subtracts 1 at each iteration
                                 if i == 0:
@@ -1058,105 +868,39 @@ class IterativeTD2C():
                                 else:
                                     previous_size = previous_size - 1
 
-                                    # Ensure size boundaries
-                                    previous_size = max(1, min(previous_size, 15))
-
-                                    # Select the top rows according to the adjusted size
-                                    causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-
-                                    # index reset
-                                    causal_df_unif_provv.reset_index(drop=True, inplace=True)
-
-                                    # check if causal_df_unif_1 is equal to any previous element in causal_df_unified list of dataframes and add 1 to its size 
-                                    # if it is until it is different
-                                    while any(causal_df_unif_provv.equals(df) for df in causal_df_permut):
-                                        previous_size += 1
-                                        causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                                        causal_df_unif_provv.reset_index(drop=True, inplace=True)
-
-                                    causal_df_unif_1 = causal_df_unif_provv
-
-                            # elif self.arbitrary_mode == "Common":
-                            #     # keep couples edge_dest,edge_source present for at least 3 DAGS with prob.pred > 0.7
-                            #     causal_df_unif_1 = causal_df_unif_1_mid[causal_df_unif_1_mid['y_pred_proba'] >= 0.7]
-
-                            #     # keep only couples edge_dest,edge_source present for at least 3 DAGS
-                            #     causal_df_unif_1 = causal_df_unif_1[causal_df_unif_1.duplicated(subset=['edge_source', 'edge_dest'], keep=False)]
-                            #     # we don't care about the order because edges can only go from higher to lower nodes
-
-                        else:
+                        else: # classic
                             if i == 0:
-                                previous_size = self.size_causal_df
-                                causal_df_unif_1 = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-
+                                 previous_size = self.size_causal_df
+                                 causal_df_unif_1 = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
                             else:
-                                previous_size = max(1, min(previous_size, 15))
-
-                                # Select the top rows according to the adjusted size
-                                causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-
-                                # index reset
-                                causal_df_unif_provv.reset_index(drop=True, inplace=True)
-
-                                # check if causal_df_unif_1 is equal to any previous element in causal_df_unified list of dataframes and add 1 to its size 
-                                # if it is until it is different
-                                while any(causal_df_unif_provv.equals(df) for df in causal_df_permut):
-                                    previous_size += 1
-                                    causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
-                                    causal_df_unif_provv.reset_index(drop=True, inplace=True)
-
-                                causal_df_unif_1 = causal_df_unif_provv
+                                pass
 
 
-                        ################ Unify causal_df ################# ----> Maybe only usefull if we use it only to print the best edges for each iteration 
-                        # input_folder = self.results_folder + f'metrics/estimate_{i}/'                                                  
+                        previous_size = max(1, min(previous_size, 15))
 
-                        # with open(os.path.join(input_folder, f'causal_df_top_{self.k}_td2c_R_N5.pkl'), 'rb') as f:
-                        #     causal_df_1 = pickle.load(f)
+                        # Select the top rows according to the adjusted size
+                        causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
 
-                        # # create a dataframe with all the causal_df
-                        # dfs = []
-                        # for process_id, process_data in causal_df_1.items():
-                        #     for graph_id, graph_data in process_data.items():                                                               
-                        #         dfs.append(graph_data)                                                                                              
-                        # causal_df_unif_1_mid = pd.concat(dfs, axis=0).reset_index(drop=True)
+                        # index reset
+                        causal_df_unif_provv.reset_index(drop=True, inplace=True)
 
-                        # # sort in ascending order by process_id, graph_id, edge_source and edge_dest
-                        # causal_df_unif_1_mid.sort_values(by=['process_id', 'graph_id', 'edge_source', 'edge_dest'], inplace=True)
+                        # check if causal_df_unif_1 is equal to any previous element in causal_df_unified list of dataframes and add 1 to its size 
+                        # if it is until it is different
+                        while any(causal_df_unif_provv.equals(df) for df in causal_df_permut) or previous_size == graph_size:
+                            previous_size += 1
+                            causal_df_unif_provv = causal_df_unif_1.nlargest(previous_size, 'y_pred_proba')
+                            causal_df_unif_provv.reset_index(drop=True, inplace=True)
 
-                        # # unique of causal_df_unif for couples of edge_source and edge_dest
-                        # causal_df_unif_1 = causal_df_unif_1_mid.drop_duplicates(subset=['edge_source', 'edge_dest'])
+                        causal_df_unif_1 = causal_df_unif_provv
 
-                        # causal_df_mid.append(causal_df_unif_1)
-
-                        
-                        ############### FINAL OPERATIONS ###############
-                        # reset index
-                        causal_df_unif_1.reset_index(drop=True, inplace=True)
-
-                        # Save all combinations of rows for causal_df_unif_1 in a dictionary.
-                        # Usefull for stopping criteria 1 and for some operations in the strategies:
-                        # create list of dataframes of permutations of causal_df_1 for couples of edge_source and edge_dest
-                        df = pd.DataFrame(causal_df_unif_1)
-                        # Get all permutations of the rows in the DataFrame
-                        row_permutations = list(permutations(df.index))  # Get permutations of the row indices
-                        # Create a list to store the permuted DataFrames
-                        permuted_dfs = []
-                        # Iterate over each permutation of row indices
-                        for perm in row_permutations:
-                            # Use the permuted index to create a new DataFrame
-                            permuted_df = df.loc[list(perm)].reset_index(drop=True)
-                            permuted_dfs.append(permuted_df) # this is a list of dataframes
-                        causal_df_permut.append(permuted_dfs) # this is a list of lists of dataframes
-
-                        # STOPPING CRITERIA 1: if causal df is the same as the previous one for 3 consecutive iterations
+                        # STOPPING CRITERIA 1: if causal_df_unif_1 is the same as the previous one for 3 consecutive iterations
                         if self.adaptive_mode != "Random":
                             if any(causal_df_unif_1.equals(df) for df in causal_df_permut):
-                                stop_1 = stop_1 + 1
-                                if stop_1 == 3:
+                                stop_1 += 1
+                                if stop_1 == 2:
                                     roc_scores.append(roc)
                                     print()
-                                    print(f'Most relevant Edges have been the same for 3 consecutive iterations:')
+                                    print(f'Most relevant Edges have been the same for 2 consecutive iterations:')
                                     print()
                                     print(causal_df_unif_1)
                                     print()
@@ -1165,11 +909,23 @@ class IterativeTD2C():
                                     break
                                 else:
                                     stop_1 = 0
+                        
+                        # add all rows permutations to causal_df_permut
+                        df = pd.DataFrame(causal_df_unif_provv)
+                        row_permutations = list(permutations(df.index))  # Get permutations of the row indices
+                        permuted_dfs = []
+                        for perm in row_permutations:
+                            permuted_df = df.loc[list(perm)].reset_index(drop=True)
+                            permuted_dfs.append(permuted_df)
+                        causal_df_permut.append(permuted_dfs)
 
                         # assign reshaped causal_df to causal_df_1
                         process_id = tuple(process_id) if isinstance(process_id, np.ndarray) else process_id
                         graph_id = tuple(graph_id) if isinstance(graph_id, np.ndarray) else graph_id    
                         causal_df_1[process_id][graph_id] = causal_df_unif_1 # this is a list of lists of dataframes
+
+                # store causal_df_1 in causal_df_unified
+                causal_df_mid[i] = causal_df_1
 
 
                 # Save causal_df ______________________________________________________________________________________________________________________________________________________________________________________
@@ -1186,39 +942,82 @@ class IterativeTD2C():
                     pickle.dump(causal_df_1, f)
 
                 # Print Best edges found in causal_df __________________________________________________________________________________________________________________________________________________________________
-                if self.adaptive_mode != "Random":
-                    
-                    # Find the causal_df with the highest number of rows to print
-                    max_size = -1
-                    causal_df_1_non_empty = None
-
-                    for t in range(self.size_causal_df, -1, -1):  # t goes from 15 to 0
-                        for process_id, process_data in causal_df_1.items():
-                            for graph_id, graph_data in process_data.items():
-                                if graph_data.shape[0] > max_size:
-                                    causal_df_1_non_empty = causal_df_1[process_id][graph_id]
-                                    max_size = graph_data.shape[0]
-
-                    # Print
-                    if i != self.it:
-                        print()
-                        print(f'Example of most relevant Edges that will be added in the next iteration:')
-                        print(causal_df_1_non_empty)
-                        print()
-                    else:
-                        print()
-                        print(f'Example of most relevant Edges for the last iteration:')
-                        print(causal_df_1_non_empty)
-                        print()
-                        print('End of iterations.')
                 
-                else:
+                ################ Unify causal_df #################
+
+                # create a dataframe with all the causal_df
+                dfs = []
+                causal_unif = pd.DataFrame()
+                
+                # create a list of dataframes with all the causal_df
+                for process_id, process_data in causal_df_1.items():
+                    for graph_id, graph_data in process_data.items():
+                        dfs.append(graph_data)
+
+                # concatenate all the dataframes in the list in one dataframe
+                causal_unif = pd.concat(dfs, axis=0).reset_index(drop=True)
+                # sort in ascending order by process_id, graph_id, edge_source and edge_dest
+                causal_unif.sort_values(by=['process_id', 'graph_id', 'edge_source', 'edge_dest'], inplace=True)
+                # sort for prediction probability
+                causal_unif.sort_values(by=['y_pred_proba'], ascending=False, inplace=True)
+                # keep top 5
+                causal_unif = causal_unif.nlargest(5, 'y_pred_proba')
+                # reset index
+                causal_unif.reset_index(drop=True, inplace=True)
+
+                # assign it to causal_df_unified
+                causal_df_unified[i] = causal_unif
+
+                # save it
+                output_folder = os.path.join(self.results_folder, f'metrics/best_edges/')
+
+                # Create the folder if it doesn't exist
+                if not os.path.exists(output_folder):
+                    os.makedirs(output_folder)
+
+                with open(os.path.join(output_folder, f'causal_df_unif_top_{self.k}_td2c_R_N5_{strategy}_method_{self.it}_iterations_Estimate_{i}.pkl'), 'wb') as f:
+                    pickle.dump(causal_unif, f)
+
+                
+                ################ Print Results #################
+
+                if self.adaptive_mode == "Random" and self.adaptive == True:
                     print()
                     print(f'Example of most relevant Edges that will be added in the next iteration:')
                     print(causal_df_unif_1)
                     print()
 
-            return roc_scores, causal_df_1
+                else:
+                    # Find the causal_df with the highest size
+                    biggest_causal_df_1 = None
+                    shape = 0
+
+                    for process_id, process_data in causal_df_1.items():
+                        for graph_id, graph_data in process_data.items():
+                            if graph_data.shape[0] > shape:
+                                biggest_causal_df_1 = causal_df_1[process_id][graph_id]
+                                shape = graph_data.shape[0]
+
+                    # Print
+                    if i != self.it:
+                        print()
+                        print(f'Example of most relevant Edges that will be added in the next iteration:')
+                        print(biggest_causal_df_1)
+                        print()
+                        print("Oerall most relevant Edges found in the last iteration:")
+                        print(causal_unif)
+                        print()
+                    else:
+                        print()
+                        print(f'Example of most relevant Edges for the last iteration:')
+                        print(biggest_causal_df_1)
+                        print()
+                        print("Oerall most relevant Edges found in the last iteration:")
+                        print(causal_unif)
+                        print
+                        print('End of iterations.')
+
+            return roc_scores, causal_df_unified
         
         elif response in ['no', 'n', 'No', 'N']:
             print()
@@ -2091,7 +1890,7 @@ class IterativeTD2C():
         response = self.response()
 
         # run the iteration
-        roc_scores, causal_df_1 = self.iterative_td2c(response)
+        roc_scores, causal_df_mid = self.iterative_td2c(response, strategy)
 
         # plot results
         self.plot_results(roc_scores, strategy)
@@ -2102,7 +1901,7 @@ class IterativeTD2C():
         ################### NEED TO ADJUST FUNCTIONS FORM HERE ON TO THE NEW VERSION OF CODE #####################
         
         # best edges
-        best_edges = self.best_edges(roc_scores, causal_df_1, roc_scores_df)
+        best_edges = self.best_edges(roc_scores, causal_df_mid, roc_scores_df)
 
         # final run
         final_roc, final_causal_df = self.final_run(best_edges)
