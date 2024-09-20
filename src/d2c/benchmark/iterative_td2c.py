@@ -536,22 +536,21 @@ class IterativeTD2C():
 
             # set of 'edge_source'-'edge_dest' in causal_df[i] - causal_df[i-1]
             edges_diff = edges_now - edges_old
-            
-            # add the new edges to causal_df[i-1]
+
+            # add the new edges to causal_df[i]
+            causal_update = {}
             for process_id, process_data in causal_dfs[i-1].items():
                 for graph_id, graph_data in process_data.items():
                     for edge in edges_diff:
-                        process_id, graph_id, edge_source, edge_dest, y_pred_proba = edge
-                        if process_id == process_id and graph_id == graph_id:
-                            causal_dfs[process_id][graph_id] = causal_dfs[i-1][process_id][graph_id].append({'process_id': process_id, 'graph_id': graph_id, 'edge_source': edge_source, 'edge_dest': edge_dest, 'y_pred_proba': y_pred_proba}, ignore_index=True)
-                            # sort in descending order by y_pred_proba
-                            causal_dfs[process_id][graph_id].sort_values(by='y_pred_proba', ascending=False, inplace=True)
-                            # reset index
-                            causal_dfs[process_id][graph_id].reset_index(drop=True, inplace=True)
-            
-            causal_dfs[i] = causal_df
+                        if edge[0] == process_id and edge[1] == graph_id:
+                            graph_data = graph_data.append({'process_id': edge[0], 'graph_id': edge[1], 'edge_source': edge[2], 'edge_dest': edge[3], 'y_pred_proba': edge[4]}, ignore_index=True)
+                            causal_update[graph_id] = graph_data
 
-        return causal_df, causal_dfs
+            causal_df = causal_update
+            causal_dfs[i] = causal_update
+
+            return causal_df, causal_dfs
+
 
     def save_causal_df(self, i, causal_df, causal_dfs):
 
