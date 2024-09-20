@@ -525,14 +525,14 @@ class IterativeTD2C():
             for process_id, process_data in causal_df.items():
                 for graph_id, graph_data in process_data.items():
                     for index, row in graph_data.iterrows():
-                        edges_now.add((row['edge_source'], row['edge_dest']))
+                        edges_now.add((row['process_id'], row['graph_id'], row['edge_source'], row['edge_dest'], row['y_pred_proba']))
                         
             # set of 'edge_source'-'edge_dest' in causal_df[i-1]
             edges_old = set()
             for process_id, process_data in causal_dfs[i-1].items():
                 for graph_id, graph_data in process_data.items():
                     for index, row in graph_data.iterrows():
-                        edges_old.add((row['edge_source'], row['edge_dest']))
+                        edges_old.add((row['process_id'], row['graph_id'], row['edge_source'], row['edge_dest'], row['y_pred_proba']))
 
             # set of 'edge_source'-'edge_dest' in causal_df[i] - causal_df[i-1]
             edges_diff = edges_now - edges_old
@@ -541,8 +541,13 @@ class IterativeTD2C():
             for process_id, process_data in causal_dfs[i-1].items():
                 for graph_id, graph_data in process_data.items():
                     for edge in edges_diff:
-                        graph_data = graph_data.append({'process_id': process_id, 'graph_id': graph_id, 'edge_source': edge[0], 'edge_dest': edge[1]}, ignore_index=True)
-                        causal_df[process_id][graph_id] = graph_data
+                        process_id, graph_id, edge_source, edge_dest, y_pred_proba = edge
+                        if process_id == process_id and graph_id == graph_id:
+                            causal_dfs[process_id][graph_id] = causal_dfs[i-1][process_id][graph_id].append({'process_id': process_id, 'graph_id': graph_id, 'edge_source': edge_source, 'edge_dest': edge_dest, 'y_pred_proba': y_pred_proba}, ignore_index=True)
+                            # sort in descending order by y_pred_proba
+                            causal_dfs[process_id][graph_id].sort_values(by='y_pred_proba', ascending=False, inplace=True)
+                            # reset index
+                            causal_dfs[process_id][graph_id].reset_index(drop=True, inplace=True)
             
             causal_dfs[i] = causal_df
 
