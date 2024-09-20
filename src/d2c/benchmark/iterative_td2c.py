@@ -199,7 +199,7 @@ class IterativeTD2C():
 
             # Reshape causal_df __________________________________________________________________________________
 
-            causal_df, causal_dfs = self.reshape_causal_df(i, causal_df, causal_dfs, roc_scores, si, th)
+            causal_df, causal_dfs, si, th = self.reshape_causal_df(i, causal_df, causal_dfs, roc_scores, si, th)
 
             # Save causal_df _____________________________________________________________________________________
 
@@ -532,7 +532,7 @@ class IterativeTD2C():
         if i == 0:
             causal_dfs[i] = causal_df
 
-            return causal_df, causal_dfs
+            return causal_df, causal_dfs, si, th
         
         else:
             # set of 'edge_source'-'edge_dest' in causal_df
@@ -568,7 +568,7 @@ class IterativeTD2C():
 
             causal_dfs[i] = causal_df
 
-            return causal_df, causal_dfs
+            return causal_df, causal_dfs, si, th
 
     def save_causal_df(self, i, causal_df):
 
