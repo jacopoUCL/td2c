@@ -162,6 +162,8 @@ class IterativeTD2C():
 
         # SETTINGS ______________________________________________________________________________________________
         
+        si = 0
+        th = 0.8
         stop_1 = 0
         roc_scores = []
         causal_dfs = {}
@@ -197,7 +199,7 @@ class IterativeTD2C():
 
             # Reshape causal_df __________________________________________________________________________________
 
-            causal_df, causal_dfs = self.reshape_causal_df(i, causal_df, causal_dfs)
+            causal_df, causal_dfs = self.reshape_causal_df(i, causal_df, causal_dfs, roc_scores, si, th)
 
             # Save causal_df _____________________________________________________________________________________
 
@@ -504,24 +506,39 @@ class IterativeTD2C():
             print(f'ROC-AUC score: {round(roc, 4)}')
             print()
 
-    def reshape_causal_df(self, i, causal_df, causal_dfs):
-        
-        si = 0
+    def reshape_causal_df(self, i, causal_df, causal_dfs, roc_scores, si, th):
+
+        siz = 0    
         for process_id, process_data in causal_df.items():
             for graph_id, graph_data in process_data.items():
 
                 # keep only top k y_pred_proba
+                if i > 0 and roc_scores[i] == roc_scores[i-1]:
+                    th = th - 0.1
+                    th = max(th, 0.5)
+
                 graph_data = graph_data[graph_data['y_pred_proba'] > 0.8]
+
                 if graph_data.shape[0] < self.k:
                     si = graph_data.shape[0]
                 else:
                     si = self.k
+                
+                if i > 0 and roc_scores[i] == roc_scores[i-1]:
+                    si = si + 1
+                
+                if si >= siz:
+                    siz = si
+
                 graph_data = graph_data.nlargest(si, 'y_pred_proba')
                 graph_data = graph_data[['process_id', 'graph_id', 'edge_source', 'edge_dest', 'y_pred_proba']]
                 graph_data.reset_index(drop=True, inplace=True)
                 # assign the processed graph_data back to causal_df_1
                 causal_df[process_id][graph_id] = graph_data
         
+        print(siz)
+        print(th)
+
         if i == 0:
             causal_dfs[i] = causal_df
 
