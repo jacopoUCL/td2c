@@ -625,13 +625,13 @@ class IterativeTD2C():
         else:
             # Find the causal_df with the highest size
             biggest_causal_df = None
-            shape = 0
+            shap = 0
 
             for process_id, process_data in causal_df.items():
                 for graph_id, graph_data in process_data.items():
-                    if graph_data.shape[0] > shape:
-                        biggest_causal_df = causal_df[process_id][graph_id]
-                        shape = graph_data.shape[0]
+                    if graph_data.shape[0] > shap:
+                        biggest_causal_df = graph_data
+                        shap = graph_data.shape[0]
 
             # shape of the biggest causal_df
             siz = biggest_causal_df.shape[0]
