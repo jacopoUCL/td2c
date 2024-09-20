@@ -162,7 +162,7 @@ class IterativeTD2C():
 
         # SETTINGS ______________________________________________________________________________________________
         
-        si = 0
+        si = self.k
         th = 0.8
         stop_1 = 0
         roc_scores = []
@@ -507,8 +507,10 @@ class IterativeTD2C():
             print()
 
     def reshape_causal_df(self, i, causal_df, causal_dfs, roc_scores, si, th):
+  
+        if i > 0 and roc_scores[i] == roc_scores[i-1]:
+            si += 1
 
-        siz = 0    
         for process_id, process_data in causal_df.items():
             for graph_id, graph_data in process_data.items():
 
@@ -517,27 +519,18 @@ class IterativeTD2C():
                     th = th - 0.1
                     th = max(th, 0.5)
 
-                graph_data = graph_data[graph_data['y_pred_proba'] > 0.8]
+                graph_data = graph_data[graph_data['y_pred_proba'] > th]
 
-                if graph_data.shape[0] < self.k:
+                if graph_data.shape[0] < si:
                     si = graph_data.shape[0]
-                else:
-                    si = self.k
-                
-                if i > 0 and roc_scores[i] == roc_scores[i-1]:
-                    si = si + 1
-                
-                if si >= siz:
-                    siz = si
 
                 graph_data = graph_data.nlargest(si, 'y_pred_proba')
                 graph_data = graph_data[['process_id', 'graph_id', 'edge_source', 'edge_dest', 'y_pred_proba']]
                 graph_data.reset_index(drop=True, inplace=True)
                 # assign the processed graph_data back to causal_df_1
                 causal_df[process_id][graph_id] = graph_data
-        
-        print(siz)
-        print(th)
+
+        print(f'treshold value: {th}')
 
         if i == 0:
             causal_dfs[i] = causal_df
@@ -574,6 +567,12 @@ class IterativeTD2C():
                 causal_df[process_id][graph_id] = causal_df[process_id][graph_id].append({'process_id': process_id, 'graph_id': graph_id, 'edge_source': edge_source, 'edge_dest': edge_dest, 'y_pred_proba': y_pred_proba}, ignore_index=True)
                 causal_df[process_id][graph_id] = causal_df[process_id][graph_id].drop_duplicates(subset=['process_id', 'graph_id', 'edge_source', 'edge_dest'], keep='first')
                 causal_df[process_id][graph_id].reset_index(drop=True, inplace=True)
+
+            # elements in causal_df as int
+            for process_id, process_data in causal_df.items():
+                for graph_id, graph_data in process_data.items():
+                    causal_df[process_id][graph_id] = graph_data.astype({'process_id': 'int', 'graph_id': 'int', 'edge_source': 'int', 'edge_dest': 'int'})
+
 
             causal_dfs[i] = causal_df
 
@@ -633,6 +632,10 @@ class IterativeTD2C():
                     if graph_data.shape[0] > shape:
                         biggest_causal_df = causal_df[process_id][graph_id]
                         shape = graph_data.shape[0]
+
+            # shape of the biggest causal_df
+            siz = biggest_causal_df.shape[0]
+            print(f'size biggest causal df: {siz}')
 
             # Print
             if i != self.it:
