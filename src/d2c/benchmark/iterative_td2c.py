@@ -8,6 +8,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import warnings
+import copy
 
 from sklearn.exceptions import UndefinedMetricWarning
 from imblearn.ensemble import BalancedRandomForestClassifier
@@ -75,8 +76,11 @@ class IterativeTD2C():
         # print roc scores
         self.df_scores(roc_scores)
 
+        # plot final result
+        example = self.plot_final_result(roc_scores, causal_dfs)
+
         # plot ground truth with the causal_df to compare
-        self.plot_ground_truth(roc_scores, causal_dfs)
+        self.plot_ground_truth(roc_scores, causal_dfs, example)
 
 
 
@@ -175,11 +179,11 @@ class IterativeTD2C():
 
             # Initialization _____________________________________________________________________________________
 
-            input_folder, output_folder = self.initialization(i=i)
+            input_folder, output_folder = self.initialization(i)
 
             # Descriptors Generation _____________________________________________________________________________
 
-            self.descriptors_generation(i=i, input_folder=input_folder, output_folder=output_folder)
+            self.descriptors_generation(i, input_folder=input_folder, output_folder=output_folder)
 
             # Set Classifier _____________________________________________________________________________________
 
@@ -199,7 +203,7 @@ class IterativeTD2C():
 
             # Reshape causal_df __________________________________________________________________________________
 
-            causal_df, causal_dfs, si, th = self.reshape_causal_df(i, causal_df, causal_dfs, roc_scores, si, th)
+            causal_df, causal_dfs, si, th = self.reshape_causal_df(i, causal_df, causal_dfs, roc_scores, roc, si, th)
 
             # Save causal_df _____________________________________________________________________________________
 
@@ -382,7 +386,7 @@ class IterativeTD2C():
             # m3 = f'Estimate_{i}_recall_process'
             # m4 = f'Estimate_{i}_f1_process'
 
-            globals()[m1] = {}
+            roc_process = {}
             # globals()[m2] = {}
             # globals()[m3] = {}
             # globals()[m4] = {}
@@ -438,7 +442,7 @@ class IterativeTD2C():
                     causal_df_small[graph_id]['y_pred'] = y_pred
 
                 causal_df[gen_process_number] = causal_df_small
-                globals()[m1][gen_process_number] = rocs
+                roc_process[gen_process_number] = rocs
                 # globals()[m2][gen_process_number] = precisions
                 # globals()[m3][gen_process_number] = recalls
                 # globals()[m4][gen_process_number] = f1s
@@ -451,10 +455,10 @@ class IterativeTD2C():
             os.makedirs(output_folder)
 
         with open(os.path.join(output_folder, f'journal_results_td2c_R_N5.pkl'), 'wb') as f:
-            everything = (globals()[m1], causal_df) #, globals()[m2], globals()[m3], globals()[m4]
+            everything = (roc_process, causal_df) #, globals()[m2], globals()[m3], globals()[m4]
             pickle.dump(everything, f)
 
-        return globals()[m1], causal_df
+        return roc_process, causal_df
 
     def load_results(self, i, roc_scores):
 
@@ -506,69 +510,95 @@ class IterativeTD2C():
             print(f'ROC-AUC score: {round(roc, 4)}')
             print()
 
-    def reshape_causal_df(self, i, causal_df, causal_dfs, roc_scores, si, th):
+    def reshape_causal_df(self, i, causal_df, causal_dfs, roc_scores, roc, si, th):
   
-        if i > 0 and roc_scores[i] == roc_scores[i-1]:
-            si += 1
-
-        if i > 0 and roc_scores[i] == roc_scores[i-1]:
-            th = th - 0.1
-            th = max(th, 0.5)
-
-        for process_id, process_data in causal_df.items():
-            for graph_id, graph_data in process_data.items():
-
-                # keep only top k y_pred_proba
-                graph_data = graph_data[graph_data['y_pred_proba'] > th]
-
-                graph_data = graph_data.nlargest(si, 'y_pred_proba')
-                graph_data = graph_data[['process_id', 'graph_id', 'edge_source', 'edge_dest', 'y_pred_proba']]
-                graph_data.reset_index(drop=True, inplace=True)
-                # assign the processed graph_data back to causal_df_1
-                causal_df[process_id][graph_id] = graph_data
-
-        print(f'Threshold: {th}')
-
-        if i == 0:
-            causal_dfs[i] = causal_df
-
-            return causal_df, causal_dfs, si, th
-        
-        else:
-            # set of 'edge_source'-'edge_dest' in causal_df
-            edges_now = set()
+        if self.strategy == "Random":
             for process_id, process_data in causal_df.items():
                 for graph_id, graph_data in process_data.items():
-                    for index, row in graph_data.iterrows():
-                        edges_now.add((row['process_id'], row['graph_id'], row['edge_source'], row['edge_dest'], row['y_pred_proba']))
-                        
-            # set of 'edge_source'-'edge_dest' in causal_df[i-1]
-            edges_old = set()
-            for process_id, process_data in causal_dfs[i-1].items():
-                for graph_id, graph_data in process_data.items():
-                    for index, row in graph_data.iterrows():
-                        edges_old.add((row['process_id'], row['graph_id'], row['edge_source'], row['edge_dest'], row['y_pred_proba']))
 
-            # find the difference between the two sets
-            edges_diff = edges_now - edges_old
-            
-            causal_df = causal_dfs[i-1]
-        
-            # add the difference to causal_df
-            for edge in edges_diff:
-                process_id = edge[0]
-                graph_id = edge[1]
-                edge_source = edge[2]
-                edge_dest = edge[3]
-                y_pred_proba = edge[4]
-                # causal_df[process_id][graph_id] = causal_df[process_id][graph_id].append({'process_id': process_id, 'graph_id': graph_id, 'edge_source': edge_source, 'edge_dest': edge_dest, 'y_pred_proba': y_pred_proba}, ignore_index=True)
-                causal_df[process_id][graph_id] = pd.concat([causal_df[process_id][graph_id],pd.DataFrame([{'process_id': process_id, 'graph_id': graph_id, 'edge_source': edge_source, 'edge_dest': edge_dest, 'y_pred_proba': y_pred_proba}])])
-                causal_df[process_id][graph_id] = causal_df[process_id][graph_id].drop_duplicates(subset=['process_id', 'graph_id', 'edge_source', 'edge_dest'], keep='first')
-                causal_df[process_id][graph_id].reset_index(drop=True, inplace=True)
+                    # keep only top k y_pred_proba
+                    graph_data = graph_data[graph_data['y_pred_proba'] > th]
+
+                    graph_data = graph_data.nlargest(si, 'y_pred_proba')
+                    graph_data = graph_data[['process_id', 'graph_id', 'edge_source', 'edge_dest', 'y_pred_proba']]
+                    graph_data.reset_index(drop=True, inplace=True)
+                    # assign the processed graph_data back to causal_df_1
+                    causal_df[process_id][graph_id] = graph_data
+
+            print(f'Threshold: {round(th,1)}')
+            print(f'Number of edges to keep: {si}')
 
             causal_dfs[i] = causal_df
 
             return causal_df, causal_dfs, si, th
+
+        else:
+
+            for process_id, process_data in causal_df.items():
+                for graph_id, graph_data in process_data.items():
+
+                    # keep only top k y_pred_proba
+                    graph_data = graph_data[graph_data['y_pred_proba'] > th]
+
+                    graph_data = graph_data.nlargest(si, 'y_pred_proba')
+                    graph_data = graph_data[['process_id', 'graph_id', 'edge_source', 'edge_dest', 'y_pred_proba']]
+                    graph_data.reset_index(drop=True, inplace=True)
+                    # assign the processed graph_data back to causal_df_1
+                    causal_df[process_id][graph_id] = graph_data
+
+            print(f'Threshold: {round(th,1)}')
+            print(f'Number of edges to keep: {si}')
+
+            if i == 0:
+                causal_dfs[i] = causal_df
+
+                return causal_df, causal_dfs, si, th
+            
+            else:
+
+                if roc == roc_scores[i-1]:
+                    si += 1
+                    th = th - 0.1
+                    th = max(th, 0.5)
+                else:
+                    pass
+
+                # set of 'edge_source'-'edge_dest' in causal_df
+                edges_now = set()
+                for process_id, process_data in causal_df.items():
+                    for graph_id, graph_data in process_data.items():
+                        for index, row in graph_data.iterrows():
+                            edges_now.add((row['process_id'], row['graph_id'], row['edge_source'], row['edge_dest'], row['y_pred_proba']))
+                            
+                # set of 'edge_source'-'edge_dest' in causal_df[i-1]
+                edges_old = set()
+                for process_id, process_data in causal_dfs[i-1].items():
+                    for graph_id, graph_data in process_data.items():
+                        for index, row in graph_data.iterrows():
+                            edges_old.add((row['process_id'], row['graph_id'], row['edge_source'], row['edge_dest'], row['y_pred_proba']))
+
+                # find the difference between the two sets
+                edges_diff = edges_now - edges_old
+                
+                causal_df = causal_dfs[i-1]
+            
+                # add the difference to causal_df
+                for edge in edges_diff:
+                    process_id = edge[0]
+                    graph_id = edge[1]
+                    edge_source = edge[2]
+                    edge_dest = edge[3]
+                    y_pred_proba = edge[4]
+                    # causal_df[process_id][graph_id] = causal_df[process_id][graph_id].append({'process_id': process_id, 'graph_id': graph_id, 'edge_source': edge_source, 'edge_dest': edge_dest, 'y_pred_proba': y_pred_proba}, ignore_index=True)
+                    causal_df[process_id][graph_id] = pd.concat([causal_df[process_id][graph_id],pd.DataFrame([{'process_id': process_id, 'graph_id': graph_id, 'edge_source': edge_source, 'edge_dest': edge_dest, 'y_pred_proba': y_pred_proba}])])
+                    causal_df[process_id][graph_id] = causal_df[process_id][graph_id].drop_duplicates(subset=['process_id', 'graph_id', 'edge_source', 'edge_dest'], keep='first')
+                    causal_df[process_id][graph_id].reset_index(drop=True, inplace=True)
+
+                causal_dfs[i] = causal_df
+
+                return causal_df, causal_dfs, si, th
+      
+
 
     def save_causal_df(self, i, causal_df):
 
@@ -705,5 +735,36 @@ class IterativeTD2C():
         
         return roc_scores_df
     
-    def plot_ground_truth(self, roc_scores, causal_dfs):
+    def plot_final_result(self, roc_scores, causal_dfs):
+        
+        best_roc = max(roc_scores)
+        best_index = roc_scores.index(best_roc)
+        best_causal_df = causal_dfs[best_index]
+        # find the causal df with the highest size
+        biggest_causal_df = None
+        shape = 0
+
+        for process_id, process_data in best_causal_df.items():
+            for graph_id, graph_data in process_data.items():
+                if graph_data.shape[0] > shape:
+                    biggest_causal_df = best_causal_df[process_id][graph_id]
+                    shape = graph_data.shape[0]
+        
+        example = biggest_causal_df
+
+        if any(roc_scores > roc_scores[0]):
+            print()
+            print('The iteration didn\'t produce any better results than standard TD2C. No need to compare.')
+            print()
+
+        else:
+            print()
+            print(f'The best iteration has been number {best_index} with a ROC-AUC score of {round(best_roc, 4)}')
+            print('We print an example of causal df from a DAG in the best iteration:')
+            print()
+            print(example)
+
+        return example
+    
+    def plot_ground_truth(self, roc_scores, causal_dfs, example):
         return

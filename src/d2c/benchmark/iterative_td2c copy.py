@@ -15,7 +15,7 @@ from sklearn.metrics import roc_auc_score
 from d2c.descriptors_generation import D2C, DataLoader
 
 
-class IterativeTD2C():
+class IterativeTD2CCopy():
     """
     This class contains the function iterative_td2c() that performs the iterative TD2C method and the functions plot_results() 
     and df_scores() to plot the results and save the ROC-AUC scores in a csv file.
@@ -587,7 +587,7 @@ class IterativeTD2C():
                         causal_df_unif_1 = graph_data
                         graph_size = causal_df_unif_1.shape[0]
 
-                        if self.treshold == True:
+                        if self.strategy == True:
                             # drop rows with y_pred_proba < treshold_value
                             causal_df_unif_1 = causal_df_unif_1[causal_df_unif_1['y_pred_proba'] >= self.treshold_value]
                             if causal_df_unif_1.shape[0] > 0:
