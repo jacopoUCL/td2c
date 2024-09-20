@@ -177,7 +177,7 @@ class IterativeTD2C():
 
             # Descriptors Generation _____________________________________________________________________________
 
-            self.descriptors_generation(i=i, input_folder=input_folder, output_folder=output_folder, causal_dfs=causal_dfs)
+            self.descriptors_generation(i=i, input_folder=input_folder, output_folder=output_folder)
 
             # Set Classifier _____________________________________________________________________________________
 
@@ -201,11 +201,15 @@ class IterativeTD2C():
 
             # Save causal_df _____________________________________________________________________________________
 
-            self.save_causal_df(i, causal_df, causal_dfs)
+            self.save_causal_df(i, causal_df)
 
             # Print Best edges found in causal_df ________________________________________________________________
             
             self.print_best_edges(causal_df, i)
+
+        # Save causal_dfs _____________________________________________________________________________________
+        
+        self.save_causal_dfs(i, causal_dfs)
 
         return roc_scores, causal_dfs
 
@@ -225,7 +229,7 @@ class IterativeTD2C():
 
         return input_folder, output_folder
 
-    def descriptors_generation(self, i, input_folder, output_folder, causal_dfs):
+    def descriptors_generation(self, i, input_folder, output_folder):
         # List of files to process
         to_process = []
 
@@ -235,6 +239,8 @@ class IterativeTD2C():
             n_variables = int(file.split('_')[1][1:])
             max_neighborhood_size = int(file.split('_')[2][2:])
             noise_std = float(file.split('_')[3][1:-4])
+            # if gen_process_number < 10:
+            #     continue
 
             if noise_std != self.noise_std_filter or max_neighborhood_size != self.max_neighborhood_size_filter:
                 continue
@@ -289,7 +295,7 @@ class IterativeTD2C():
                     cmi='original',
                     mb_estimator = 'iterative',
                     top_vars = self.top_vars,
-                    causal_df_list =  dataloader.from_pickle_causal_df(os.path.join(self.results_folder, f'causal_dfs/estimate_{i-1}/', f'causal_df_top_{self.k}_td2c_R_N5.pkl'))
+                    causal_df_list =  dataloader.from_pickle_causal_df(os.path.join(self.results_folder, f'causal_dfs/single/', f'it_{i-1}_causal_df_top_{self.k}_td2c_R_N5.pkl'))
                 )
 
             d2c.initialize()  # Initializes the D2C object
@@ -402,7 +408,7 @@ class IterativeTD2C():
                 # precisions = {}
                 # recalls = {}
                 # f1s = {}
-                causal_dfs = {}
+                causal_df_small = {}
                 for graph_id in range(40):
                     #load testing descriptors
                     test_df = testing_data.loc[testing_data['graph_id'] == graph_id]
@@ -425,11 +431,11 @@ class IterativeTD2C():
                     # f1s[graph_id] = f1
                     
                     # add to causal_df test_df, y_pred_proba and y_pred
-                    causal_dfs[graph_id] = test_df
-                    causal_dfs[graph_id]['y_pred_proba'] = y_pred_proba
-                    causal_dfs[graph_id]['y_pred'] = y_pred
+                    causal_df_small[graph_id] = test_df
+                    causal_df_small[graph_id]['y_pred_proba'] = y_pred_proba
+                    causal_df_small[graph_id]['y_pred'] = y_pred
 
-                causal_df[gen_process_number] = causal_dfs
+                causal_df[gen_process_number] = causal_df_small
                 globals()[m1][gen_process_number] = rocs
                 # globals()[m2][gen_process_number] = precisions
                 # globals()[m3][gen_process_number] = recalls
@@ -500,13 +506,16 @@ class IterativeTD2C():
 
     def reshape_causal_df(self, i, causal_df, causal_dfs):
         
-        # forse meglio creando una copia prima di iterare
+        si = 0
         for process_id, process_data in causal_df.items():
             for graph_id, graph_data in process_data.items():
 
                 # keep only top k y_pred_proba
-                graph_data = graph_data[graph_data['y_pred_proba'] > 0.5]
-                si = max(self.k, graph_data.shape[0])
+                graph_data = graph_data[graph_data['y_pred_proba'] > 0.8]
+                if graph_data.shape[0] < self.k:
+                    si = graph_data.shape[0]
+                else:
+                    si = self.k
                 graph_data = graph_data.nlargest(si, 'y_pred_proba')
                 graph_data = graph_data[['process_id', 'graph_id', 'edge_source', 'edge_dest', 'y_pred_proba']]
                 graph_data.reset_index(drop=True, inplace=True)
@@ -519,7 +528,6 @@ class IterativeTD2C():
             return causal_df, causal_dfs
         
         else:
-            # add causal_df[i] to causal_df[i-1]
             # set of 'edge_source'-'edge_dest' in causal_df
             edges_now = set()
             for process_id, process_data in causal_df.items():
@@ -534,39 +542,38 @@ class IterativeTD2C():
                     for index, row in graph_data.iterrows():
                         edges_old.add((row['process_id'], row['graph_id'], row['edge_source'], row['edge_dest'], row['y_pred_proba']))
 
-            # set of 'edge_source'-'edge_dest' in causal_df[i] - causal_df[i-1]
+            # find the difference between the two sets
             edges_diff = edges_now - edges_old
+            
+            causal_df = causal_dfs[i-1]
+        
+            # add the difference to causal_df
+            for edge in edges_diff:
+                process_id = edge[0]
+                graph_id = edge[1]
+                edge_source = edge[2]
+                edge_dest = edge[3]
+                y_pred_proba = edge[4]
+                causal_df[process_id][graph_id] = causal_df[process_id][graph_id].append({'process_id': process_id, 'graph_id': graph_id, 'edge_source': edge_source, 'edge_dest': edge_dest, 'y_pred_proba': y_pred_proba}, ignore_index=True)
+                causal_df[process_id][graph_id] = causal_df[process_id][graph_id].drop_duplicates(subset=['process_id', 'graph_id', 'edge_source', 'edge_dest'], keep='first')
+                causal_df[process_id][graph_id].reset_index(drop=True, inplace=True)
 
-            # add the new edges to causal_df[i]
-            causal_update = {}
-            for process_id, process_data in causal_dfs[i-1].items():
-                for graph_id, graph_data in process_data.items():
-                    for edge in edges_diff:
-                        if edge[0] == process_id and edge[1] == graph_id:
-                            graph_data = graph_data.append({'process_id': edge[0], 'graph_id': edge[1], 'edge_source': edge[2], 'edge_dest': edge[3], 'y_pred_proba': edge[4]}, ignore_index=True)
-                            causal_update[graph_id] = graph_data
-
-            causal_df = causal_update
-            causal_dfs[i] = causal_update
+            causal_dfs[i] = causal_df
 
             return causal_df, causal_dfs
 
-
-    def save_causal_df(self, i, causal_df, causal_dfs):
+    def save_causal_df(self, i, causal_df):
 
         # output folder
-        output_folder = os.path.join(self.results_folder, f'causal_dfs/estimate_{i}/')
+        output_folder = os.path.join(self.results_folder, f'causal_dfs/single/')
 
         # Create the folder if it doesn't exist
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
 
         # Save the causal_df and causal_dfs in a pickle file
-        with open(os.path.join(output_folder, f'causal_df_top_{self.k}_td2c_R_N5.pkl'), 'wb') as f:
+        with open(os.path.join(output_folder, f'it_{i}_causal_df_top_{self.k}_td2c_R_N5.pkl'), 'wb') as f:
             pickle.dump(causal_df, f)
-
-        with open(os.path.join(output_folder, f'causal_dfs_top_{self.k}_td2c_R_N5.pkl'), 'wb') as f:
-            pickle.dump(causal_dfs, f)
 
     def print_best_edges(self, causal_df, i):
 
@@ -630,6 +637,19 @@ class IterativeTD2C():
                 print('End of iterations.')
 #####
 
+    def save_causal_dfs(self, i, causal_dfs):
+            
+            # output folder
+            output_folder = os.path.join(self.results_folder, f'causal_dfs/dictionary/')
+    
+            # Create the folder if it doesn't exist
+            if not os.path.exists(output_folder):
+                os.makedirs(output_folder)
+    
+            # Save the causal_df and causal_dfs in a pickle file
+            with open(os.path.join(output_folder, f'it_{i}_causal_dfs_top_{self.k}_td2c_R_N5.pkl'), 'wb') as f:
+                pickle.dump(causal_dfs, f)
+    
     def plot_results(self, roc_scores):
 
         if  self.method == None or self.k == None or self.it == None or self.COUPLES_TO_CONSIDER_PER_DAG == None or roc_scores == None or self.strategy == None:
