@@ -9,6 +9,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import warnings
 import copy
+import matplotlib.pyplot as plt
+import networkx as nx
 
 from sklearn.exceptions import UndefinedMetricWarning
 from imblearn.ensemble import BalancedRandomForestClassifier
@@ -56,7 +58,7 @@ class IterativeTD2C():
             print()
             print("Ok! Let's start the iteration.")
             print()
-            roc_scores, causal_dfs = self.iteration()
+            roc_scores, causal_dfs, dags = self.iteration()
             print('roc_scores:')
             print(roc_scores)
         
@@ -80,7 +82,7 @@ class IterativeTD2C():
         example = self.plot_final_result(roc_scores, causal_dfs)
 
         # plot ground truth with the causal_df to compare
-        self.plot_ground_truth(roc_scores, causal_dfs, example)
+        self.plot_ground_truth(example, dags)
 
 
 
@@ -183,7 +185,7 @@ class IterativeTD2C():
 
             # Descriptors Generation _____________________________________________________________________________
 
-            self.descriptors_generation(i, input_folder=input_folder, output_folder=output_folder)
+            dags = self.descriptors_generation(i, input_folder=input_folder, output_folder=output_folder)
 
             # Set Classifier _____________________________________________________________________________________
 
@@ -217,7 +219,7 @@ class IterativeTD2C():
         
         self.save_causal_dfs(i, causal_dfs)
 
-        return roc_scores, causal_dfs
+        return roc_scores, causal_dfs, dags
 
 
     def initialization(self, i):
@@ -264,12 +266,13 @@ class IterativeTD2C():
 
             dataloader = DataLoader(n_variables=n_variables, maxlags=self.maxlags)
             dataloader.from_pickle(input_folder + file)
+            dags = dataloader.get_dags()
 
             # First iteration: classic TD2C
             if i  ==  0:
                 d2c = D2C(
                     observations=dataloader.get_observations(),
-                    dags=dataloader.get_dags(),
+                    dags=dags,
                     couples_to_consider_per_dag= self.COUPLES_TO_CONSIDER_PER_DAG,
                     MB_size= self.MB_SIZE,
                     n_variables=n_variables,
@@ -315,7 +318,7 @@ class IterativeTD2C():
 
             descriptors_df.to_pickle(output_folder + f'Estimate_{i}_P{gen_process_number}_N{n_variables}_Nj{max_neighborhood_size}_n{noise_std}_MB{self.MB_SIZE}.pkl')
 
-        return descriptors_df
+        return dags
 
     def set_classifier(self, i):
 
@@ -769,5 +772,53 @@ class IterativeTD2C():
 
         return example
     
-    def plot_ground_truth(self, roc_scores, causal_dfs, example):
+    def plot_ground_truth(self, example, dags):
+        
+        ex_proc = example["process_id"].values[0]
+        ex_graph = example["graph_id"].values[0]
+
+        input_folder = self.input_folder
+        graphs= {}
+
+        # Process each file and create new DAGs based on causal paths
+        for file in sorted(os.listdir(input_folder)):
+            dataloader = DataLoader(n_variables=5, maxlags=5)
+            dataloader.from_pickle(input_folder + file)
+            dags = dataloader.get_dags()
+            graphs[file] = dags
+
+        # rename the keys of the dictionary with (1,2,3,4,6,7,8,9,10,11,12,13,14,15,16,18,19,20)
+        graphs = dict(zip([1,2,3,4,6,7,8,9,10,11,12,13,14,15,16,18,19,20], graphs.values()))
+
+        # Find the DAG
+        ground_truth = graphs[ex_proc][ex_graph]
+
+        G = nx.DiGraph()
+
+        # Add nodes
+        nodes = ground_truth.nodes()
+        G.add_nodes_from(nodes)
+
+        # Define edges (given by you)
+        edges = ground_truth.edges()
+        G.add_edges_from(edges)
+
+        # Define the corrected grid positions including nodes from 0 to 4
+        pos = {
+            25: (0, 5), 26: (1, 5), 27: (2, 5), 28: (3, 5), 29: (4, 5),
+            20: (0, 4), 21: (1, 4), 22: (2, 4), 23: (3, 4), 24: (4, 4),
+            15: (0, 3), 16: (1, 3), 17: (2, 3), 18: (3, 3), 19: (4, 3),
+            10: (0, 2), 11: (1, 2), 12: (2, 2), 13: (3, 2), 14: (4, 2),
+            5:  (0, 1), 6:  (1, 1), 7:  (2, 1), 8:  (3, 1), 9:  (4, 1),
+            0:  (0, 0), 1:  (1, 0), 2:  (2, 0), 3:  (3, 0), 4:  (4, 0),
+        }
+
+        # Define labels as per your description
+        labels = {i: f'X_{(i-1) % 5 + 1}_{{t-{(i-1) // 5}}}' for i in nodes}
+
+        # Draw the graph with corrected alignment
+        plt.figure(figsize=(10, 8))
+        nx.draw(G, pos, with_labels=True, labels=labels, node_size=1000, node_color='skyblue', font_size=10, font_weight='bold', arrowsize=20)
+        plt.show()
+
         return
