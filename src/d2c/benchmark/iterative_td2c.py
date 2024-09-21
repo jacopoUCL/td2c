@@ -602,8 +602,6 @@ class IterativeTD2C():
 
                 return causal_df, causal_dfs, si, th
       
-
-
     def save_causal_df(self, i, causal_df):
 
         # output folder
@@ -742,6 +740,7 @@ class IterativeTD2C():
     def plot_final_result(self, roc_scores, causal_dfs):
         
         best_roc = max(roc_scores)
+        print(best_roc)
         best_index = roc_scores.index(best_roc)
         best_causal_df = causal_dfs[best_index]
         # find the causal df with the highest size
@@ -756,7 +755,7 @@ class IterativeTD2C():
         
         example = biggest_causal_df
 
-        if any(roc_scores > roc_scores[0]):
+        if not any(roc_scores > roc_scores[0]):
             print()
             print('The iteration didn\'t produce any better results than standard TD2C. No need to compare.')
             print()
