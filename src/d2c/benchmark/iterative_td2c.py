@@ -828,8 +828,6 @@ class IterativeTD2C():
         # Extract old edges from the ground truth
         old_edges = set(ground_truth.edges())
 
-        old_edges
-
         # Convert new_edges to a set of tuples for easy comparison
         new_edges_set = set(map(tuple, new_edges))
 
@@ -843,8 +841,8 @@ class IterativeTD2C():
         nx.draw(G, pos, with_labels=True, labels=labels, node_size=1000, node_color='skyblue', font_size=10, font_weight='bold', arrowsize=20, edge_color='blue')
 
         # Add new edges to the graph and draw them in red
-        G.add_edges_from(filtered_new_edges)
-        nx.draw_networkx_edges(G, pos, edgelist=filtered_new_edges, edge_color='red', arrows=True, arrowsize=20)
+        G.add_edges_from(new_edges_set)
+        nx.draw_networkx_edges(G, pos, edgelist=filtered_new_edges, edge_color='red', arrows=True, arrowsize=30)
 
         # Show the plot
         plt.title("DAG with Original (Blue) and New Edges (Red)")
