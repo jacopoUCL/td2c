@@ -774,10 +774,10 @@ class IterativeTD2C():
     
     def plot_ground_truth(self, example, dags):
         
-        ex_proc = example["process_id"].values[0]
-        ex_graph = example["graph_id"].values[0]
+        ex_proc = int(example['process_id'].iloc[0])
+        ex_graph = int(example['graph_id'].iloc[0])
 
-        input_folder = self.input_folder
+        input_folder = self.data_folder
         graphs= {}
 
         # Process each file and create new DAGs based on causal paths
@@ -819,6 +819,35 @@ class IterativeTD2C():
         # Draw the graph with corrected alignment
         plt.figure(figsize=(10, 8))
         nx.draw(G, pos, with_labels=True, labels=labels, node_size=1000, node_color='skyblue', font_size=10, font_weight='bold', arrowsize=20)
+        plt.show()
+
+
+        # Extract new edges from dexample_df
+        new_edges = example[(example['process_id'] == ex_proc) & (example['graph_id'] == ex_graph)][['edge_source', 'edge_dest']].values
+
+        # Extract old edges from the ground truth
+        old_edges = set(ground_truth.edges())
+
+        old_edges
+
+        # Convert new_edges to a set of tuples for easy comparison
+        new_edges_set = set(map(tuple, new_edges))
+
+        # Filter out edges from new_edges that are already in old_edges
+        filtered_new_edges = new_edges_set - old_edges
+
+        # Create the plot
+        plt.figure(figsize=(10, 8))
+
+        # Draw the original edges (old edges) in blue
+        nx.draw(G, pos, with_labels=True, labels=labels, node_size=1000, node_color='skyblue', font_size=10, font_weight='bold', arrowsize=20, edge_color='blue')
+
+        # Add new edges to the graph and draw them in red
+        G.add_edges_from(filtered_new_edges)
+        nx.draw_networkx_edges(G, pos, edgelist=filtered_new_edges, edge_color='red', arrows=True, arrowsize=20)
+
+        # Show the plot
+        plt.title("DAG with Original (Blue) and New Edges (Red)")
         plt.show()
 
         return
