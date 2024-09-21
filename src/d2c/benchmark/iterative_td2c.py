@@ -515,83 +515,87 @@ class IterativeTD2C():
         if self.strategy == "Random":
             for process_id, process_data in causal_df.items():
                 for graph_id, graph_data in process_data.items():
-
-                    # keep only top k y_pred_proba
+                    # Keep only top k y_pred_proba greater than threshold
                     graph_data = graph_data[graph_data['y_pred_proba'] > th]
-
                     graph_data = graph_data.nlargest(si, 'y_pred_proba')
                     graph_data = graph_data[['process_id', 'graph_id', 'edge_source', 'edge_dest', 'y_pred_proba']]
                     graph_data.reset_index(drop=True, inplace=True)
-                    # assign the processed graph_data back to causal_df_1
+                    
+                    # Assign the processed graph_data back to causal_df
                     causal_df[process_id][graph_id] = graph_data
 
-            print(f'Threshold: {round(th,1)}')
+            print(f'Threshold: {round(th, 1)}')
             print(f'Number of edges to keep: {si}')
 
             causal_dfs[i] = causal_df
-
             return causal_df, causal_dfs, si, th
 
         else:
-
             for process_id, process_data in causal_df.items():
                 for graph_id, graph_data in process_data.items():
-
-                    # keep only top k y_pred_proba
+                    # Keep only top k y_pred_proba greater than threshold
                     graph_data = graph_data[graph_data['y_pred_proba'] > th]
-
                     graph_data = graph_data.nlargest(si, 'y_pred_proba')
                     graph_data = graph_data[['process_id', 'graph_id', 'edge_source', 'edge_dest', 'y_pred_proba']]
                     graph_data.reset_index(drop=True, inplace=True)
-                    # assign the processed graph_data back to causal_df_1
+                    
+                    # Assign the processed graph_data back to causal_df
                     causal_df[process_id][graph_id] = graph_data
 
-            print(f'Threshold: {round(th,1)}')
+            print(f'Threshold: {round(th, 1)}')
             print(f'Number of edges to keep: {si}')
 
             if i == 0:
                 causal_dfs[i] = causal_df
-
                 return causal_df, causal_dfs, si, th
             
             else:
-
                 if roc == roc_scores[i-1]:
                     si += 1
                     th = th - 0.1
                     th = max(th, 0.5)
-                else:
-                    pass
-
-                # set of 'edge_source'-'edge_dest' in causal_df
+                
+                # Create set of 'edge_source'-'edge_dest' from current causal_df
                 edges_now = set()
                 for process_id, process_data in causal_df.items():
                     for graph_id, graph_data in process_data.items():
-                        for index, row in graph_data.iterrows():
+                        for _, row in graph_data.iterrows():
                             edges_now.add((row['process_id'], row['graph_id'], row['edge_source'], row['edge_dest'], row['y_pred_proba']))
-                            
-                # set of 'edge_source'-'edge_dest' in causal_df[i-1]
+                
+                # Create set of 'edge_source'-'edge_dest' from previous causal_df
                 edges_old = set()
                 for process_id, process_data in causal_dfs[i-1].items():
                     for graph_id, graph_data in process_data.items():
-                        for index, row in graph_data.iterrows():
+                        for _, row in graph_data.iterrows():
                             edges_old.add((row['process_id'], row['graph_id'], row['edge_source'], row['edge_dest'], row['y_pred_proba']))
-
-                # find the difference between the two sets
+                
+                # Find the difference between the current and previous edges
                 edges_diff = edges_now - edges_old
                 
-                causal_df = causal_dfs[i-1]
-            
-                # add the difference to causal_df
+                # Make a deep copy of the previous causal_df to avoid unintended changes
+                causal_df = copy.deepcopy(causal_dfs[i-1])
+
+                # Add the different edges to the causal_df
                 for edge in edges_diff:
                     process_id = edge[0]
                     graph_id = edge[1]
                     edge_source = edge[2]
                     edge_dest = edge[3]
                     y_pred_proba = edge[4]
-                    # causal_df[process_id][graph_id] = causal_df[process_id][graph_id].append({'process_id': process_id, 'graph_id': graph_id, 'edge_source': edge_source, 'edge_dest': edge_dest, 'y_pred_proba': y_pred_proba}, ignore_index=True)
-                    causal_df[process_id][graph_id] = pd.concat([causal_df[process_id][graph_id],pd.DataFrame([{'process_id': process_id, 'graph_id': graph_id, 'edge_source': edge_source, 'edge_dest': edge_dest, 'y_pred_proba': y_pred_proba}])])
-                    causal_df[process_id][graph_id] = causal_df[process_id][graph_id].drop_duplicates(subset=['process_id', 'graph_id', 'edge_source', 'edge_dest'], keep='first')
+                    
+                    # Concatenate the new edges to the existing graph data
+                    new_data = pd.DataFrame([{
+                        'process_id': process_id, 
+                        'graph_id': graph_id, 
+                        'edge_source': edge_source, 
+                        'edge_dest': edge_dest, 
+                        'y_pred_proba': y_pred_proba
+                    }])
+                    
+                    causal_df[process_id][graph_id] = pd.concat([causal_df[process_id][graph_id], new_data])
+                    causal_df[process_id][graph_id] = causal_df[process_id][graph_id].drop_duplicates(
+                        subset=['process_id', 'graph_id', 'edge_source', 'edge_dest'], keep='first'
+                    )
                     causal_df[process_id][graph_id].reset_index(drop=True, inplace=True)
 
                 causal_dfs[i] = causal_df
