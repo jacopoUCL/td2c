@@ -63,7 +63,7 @@ class MarkovBlanketEstimator:
         Returns:
         - numpy.ndarray: Indices of the top-ranked features.
         """
-        print(f"Shape of X: {X.shape}, Shape of Y: {Y.shape}")
+        # print(f"Shape of X: {X.shape}, Shape of Y: {Y.shape}")
 
         if regr:
             model = RidgeCV()
