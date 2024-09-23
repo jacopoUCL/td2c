@@ -514,18 +514,22 @@ class IterativeTD2CRandom():
     def reshape_causal_df(self, i, causal_df, causal_dfs, roc_scores, roc, si, th):
   
         if self.strategy == "Random":
+            import random
             for process_id, process_data in causal_df.items():
                 for graph_id, graph_data in process_data.items():
-                    # keep si random edges
+                    # shouffle couple of elements edge_source and edge_dest in the causal_df
+                    seed = random.randint(0, 2**32 - 1)
+                    graph_data = graph_data.sample(frac=1, random_state=seed).reset_index(drop=True)
+                    # take the first si elements
                     si = min(si, graph_data.shape[0])
-                    graph_data = graph_data.sample(frac=1).reset_index(drop=True)  # Shuffle the rows
-                    graph_data = graph_data.sample(n=si, replace=False)
+                    graph_data = graph_data.head(si)
                     graph_data = graph_data[['process_id', 'graph_id', 'edge_source', 'edge_dest', 'y_pred_proba']]
                     graph_data.reset_index(drop=True, inplace=True)
                     
                     # Assign the processed graph_data back to causal_df
                     causal_df[process_id][graph_id] = graph_data
 
+            print(f'example: {graph_data}')
             print(f'Threshold: {round(th, 1)}')
             print(f'Number of edges to keep: {si}')
 
