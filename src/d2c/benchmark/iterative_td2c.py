@@ -818,7 +818,7 @@ class IterativeTD2C():
 
         # Draw the graph with corrected alignment
         plt.figure(figsize=(10, 8))
-        nx.draw(G, pos, with_labels=True, labels=labels, node_size=1000, node_color='skyblue', font_size=10, font_weight='bold', arrowsize=20)
+        nx.draw(G, pos, with_labels=True, labels=labels, node_size=1000, node_color='lightgrey', font_size=10, font_weight='bold', arrowsize=20)
         plt.show()
 
 
@@ -838,12 +838,11 @@ class IterativeTD2C():
         plt.figure(figsize=(10, 8))
 
         # Draw the original edges (old edges) in blue
-        nx.draw(G, pos, with_labels=True, labels=labels, node_size=1000, node_color='skyblue', font_size=10, font_weight='bold', arrowsize=20, edge_color='blue')
+        nx.draw(G, pos, with_labels=True, labels=labels, node_size=1000, node_color='lightgrey', font_size=10, font_weight='bold', arrowsize=20, edge_color='lightgrey')
 
         # Add new edges to the graph and draw them in red
         G.add_edges_from(new_edges_set)
-        nx.draw_networkx_edges(G, pos, edgelist=filtered_new_edges, edge_color='red', arrows=True, arrowsize=30)
-
+        nx.draw_networkx_edges(G, pos, edgelist=filtered_new_edges, edge_color='black', arrows=True, arrowsize=30, width=1.5)
         # Show the plot
         plt.title("DAG with Original (Blue) and New Edges (Red)")
         plt.show()
