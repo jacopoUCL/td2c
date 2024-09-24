@@ -169,7 +169,7 @@ class IterativeTD2C():
         # SETTINGS ______________________________________________________________________________________________
         
         si = self.k
-        th = 0.8
+        th = 0.7 # 0.8
         stop_1 = 0
         roc_scores = []
         causal_dfs = {}
@@ -545,7 +545,7 @@ class IterativeTD2C():
                     # Assign the processed graph_data back to causal_df
                     causal_df[process_id][graph_id] = graph_data
 
-            print(f'Threshold: {round(th, 1)}')
+            print(f'Threshold: {round(th, 3)}')
             print(f'Number of edges to keep: {si}')
 
             if i == 0:
@@ -553,10 +553,10 @@ class IterativeTD2C():
                 return causal_df, causal_dfs, si, th
             
             else:
-                if roc == roc_scores[i-1]:
-                    si += 1
-                    th = th - 0.1
-                    th = max(th, 0.5)
+                # if roc <= roc_scores[i-1]:
+                    # si += 1
+                    # th = th - 0.1
+                    # th = max(th, 0.5)
                 
                 # Create set of 'edge_source'-'edge_dest' from current causal_df
                 edges_now = set()
@@ -837,10 +837,10 @@ class IterativeTD2C():
         # Create the plot
         plt.figure(figsize=(10, 8))
 
-        # Draw the original edges (old edges) in blue
+        # Draw the original edges (old edges) in grey
         nx.draw(G, pos, with_labels=True, labels=labels, node_size=1000, node_color='lightgrey', font_size=10, font_weight='bold', arrowsize=20, edge_color='lightgrey')
 
-        # Add new edges to the graph and draw them in red
+        # Add new edges to the graph and draw them in black
         G.add_edges_from(new_edges_set)
         nx.draw_networkx_edges(G, pos, edgelist=filtered_new_edges, edge_color='black', arrows=True, arrowsize=30, width=1.5)
         # Show the plot
