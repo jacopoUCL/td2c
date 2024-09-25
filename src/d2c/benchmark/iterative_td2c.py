@@ -169,7 +169,7 @@ class IterativeTD2C():
         # SETTINGS ______________________________________________________________________________________________
         
         si = self.k
-        th = 0.7 # 0.8
+        th = 0.8
         stop_1 = 0
         roc_scores = []
         causal_dfs = {}
@@ -553,10 +553,16 @@ class IterativeTD2C():
                 return causal_df, causal_dfs, si, th
             
             else:
-                # if roc <= roc_scores[i-1]:
+                if roc > roc_scores[i-1]:
                     # si += 1
-                    # th = th - 0.1
-                    # th = max(th, 0.5)
+                    th = 0.95 # FORSE DA DIMINUTIRE
+                    causal_df = copy.deepcopy(causal_dfs[i-1])
+                    causal_dfs[i] = causal_df
+                    return causal_df, causal_dfs, si, th
+
+                else:
+                    th = th - 0.05
+                    th = max(th, 0.65)
                 
                 # Create set of 'edge_source'-'edge_dest' from current causal_df
                 edges_now = set()
