@@ -1,3 +1,0 @@
-From -> To
-Milk -> Butter
-Milk -> Cheese

@@ -1,6 +1,0 @@
-From -> To
-Metric_1 -> Metric_2
-Metric_2 -> Metric_0
-Metric_0 -> Metric_0
-Metric_1 -> Metric_1
-Metric_2 -> Metric_2
