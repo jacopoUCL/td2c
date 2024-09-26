@@ -205,8 +205,7 @@ class IterativeTD2C():
 
             # Reshape causal_df __________________________________________________________________________________
 
-            causal_df, causal_dfs, si, th, add = self.reshape_causal_df(i, causal_df, causal_dfs, roc_scores, roc, si, th)
-            self.it += add
+            causal_df, causal_dfs, si, th = self.reshape_causal_df(i, causal_df, causal_dfs, roc_scores, roc, si, th)
             self.it = min(self.it, 30)
 
             # Save causal_df _____________________________________________________________________________________
@@ -533,8 +532,7 @@ class IterativeTD2C():
             print(f'Number of edges to keep: {si}')
 
             causal_dfs[i] = causal_df
-            add = 0
-            return causal_df, causal_dfs, si, th, add
+            return causal_df, causal_dfs, si, th
 
         else:
             for process_id, process_data in causal_df.items():
@@ -552,21 +550,17 @@ class IterativeTD2C():
                 print(f'Threshold: {round(th, 3)}')
                 print(f'Number of edges to keep: {si}')
                 causal_dfs[i] = causal_df
-                add = 0
-                return causal_df, causal_dfs, si, th, add
+                return causal_df, causal_dfs, si, th
             
             else:
                 if roc > roc_scores[i-1]:
                     # si += 1
-                    # self.it += causal_df[1][0].shape[0]
-                    add = 3
-                    print(f'We added 3 more iterations and now the number of total iterations is {self.it}')
                     th = 0.8
                     causal_df = copy.deepcopy(causal_dfs[i-1])
                     causal_dfs[i] = causal_df
                     print(f'Threshold: {round(th, 3)}')
                     print(f'Number of edges to keep: {si}')
-                    return causal_df, causal_dfs, si, th, add
+                    return causal_df, causal_dfs, si, th
 
                 else:
                     th = th - 0.05
@@ -619,8 +613,7 @@ class IterativeTD2C():
 
                 print(f'Threshold: {round(th, 3)}')
                 print(f'Number of edges to keep: {si}')
-                add = 0
-                return causal_df, causal_dfs, si, th, add
+                return causal_df, causal_dfs, si, th
       
     def save_causal_df(self, i, causal_df):
 
