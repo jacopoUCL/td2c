@@ -1,0 +1,8 @@
+Model,Antivirus,Dairy,Temperature,Veilleux,Web,% per Method
+All Processes (Validation set),6 / 16,0 / 2,1 / 1,0 / 1,3 / 14,29.41%
+Linear Processes (Validation set),2 / 16,0 / 2,1 / 1,0 / 1,1 / 14,11.76%
+Linear and Nonlinear Processes (Validation set),2 / 16,0 / 2,0 / 1,0 / 1,1 / 14,8.82%
+All Processes (LOPOCV),6 / 16,0 / 2,0 / 1,0 / 1,4 / 14,29.41%
+Linear Processes (LOPOCV),2 / 16,0 / 2,1 / 1,0 / 1,1 / 14,11.76%
+Linear and Nonlinear Processes (LOPOCV),2 / 16,0 / 2,0 / 1,0 / 1,2 / 14,11.76%
+% per Dataset,20.83%,0.0%,50.0%,0.0%,14.29%,17.16%

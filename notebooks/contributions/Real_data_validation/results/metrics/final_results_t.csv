@@ -1,0 +1,8 @@
+0,1,2,3,4,5,6
+All Processes (Validation set),Linear Processes (Validation set),Linear and Nonlinear Processes (Validation set),All Processes (LOPOCV),Linear Processes (LOPOCV),Linear and Nonlinear Processes (LOPOCV),% per Dataset
+6 / 16,2 / 16,2 / 16,6 / 16,2 / 16,2 / 16,20.83%
+0 / 2,0 / 2,0 / 2,0 / 2,0 / 2,0 / 2,0.0%
+1 / 1,1 / 1,0 / 1,0 / 1,1 / 1,0 / 1,50.0%
+0 / 1,0 / 1,0 / 1,0 / 1,0 / 1,0 / 1,0.0%
+3 / 14,1 / 14,1 / 14,4 / 14,1 / 14,2 / 14,14.29%
+29.41%,11.76%,8.82%,29.41%,11.76%,11.76%,17.16%
