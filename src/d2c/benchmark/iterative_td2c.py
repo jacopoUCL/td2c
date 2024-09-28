@@ -409,8 +409,10 @@ class IterativeTD2C():
 
                 testing_data = descriptors_training.loc[(descriptors_training['process_id'] == gen_process_number) & (descriptors_training['n_variables'] == n_variables) & (descriptors_training['max_neighborhood_size'] == max_neighborhood_size) & (descriptors_training['noise_std'] == noise_std)]
 
-                model = BalancedRandomForestClassifier(n_estimators=100, random_state=0, n_jobs=self.N_JOBS, max_depth=None, sampling_strategy='auto', replacement=True, bootstrap=False)
+                # model = BalancedRandomForestClassifier(n_estimators=100, random_state=0, n_jobs=self.N_JOBS, max_depth=None, sampling_strategy='auto', replacement=True, bootstrap=False)
                 # model = RandomForestClassifier(n_estimators=50, random_state=0, n_jobs=50, max_depth=10)
+                from imblearn.ensemble import RUSBoostClassifier
+                model = RUSBoostClassifier(n_estimators=100, random_state=0, learning_rate=0.1, algorithm='SAMME.R', replacement=False, sampling_strategy='auto')
 
                 model = model.fit(X_train, y_train)
 
@@ -728,6 +730,10 @@ class IterativeTD2C():
 
             # save the plot in folder
             output_folder = os.path.join(self.results_folder, 'plots/')
+
+            if not os.path.exists(output_folder):
+                os.makedirs(output_folder)
+
             plt.savefig(output_folder + f'ROC_AUC_scores_TD2C_{self.method}_{len(roc_scores)}_iterations_{self.k}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag_{self.strategy}.pdf')
             plt.show()
 
@@ -745,6 +751,10 @@ class IterativeTD2C():
 
             # save the df in a csv file
             output_folder = os.path.join(self.results_folder, 'metrics/')
+
+            if not os.path.exists(output_folder):
+                os.makedirs(output_folder)
+
             roc_scores_df.to_csv(output_folder + f'roc_scores_TD2C_{self.method}_{len(roc_scores)}_iterations_{self.k}_top_vars_{self.COUPLES_TO_CONSIDER_PER_DAG}_couples_per_dag_{self.strategy}.csv', index=False)
             print(roc_scores_df)
         
