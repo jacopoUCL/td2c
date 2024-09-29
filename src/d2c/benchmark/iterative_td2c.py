@@ -555,7 +555,7 @@ class IterativeTD2C():
                 return causal_df, causal_dfs, si, th
             
             else:
-                if roc > roc_scores[i-1]:
+                if i > 1 and roc > roc_scores[i-1]:
                     # si += 1
                     th = 0.8
                     causal_df = copy.deepcopy(causal_dfs[i-1])
