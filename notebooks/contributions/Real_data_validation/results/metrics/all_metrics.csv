@@ -1,0 +1,16 @@
+,,PCMCI,Granger,DYNOTEARS,VARLiNGAM,TD2C
+Antivirus_activity,precision,0.027,0.129,0.095,0.102,0.104
+Antivirus_activity,recall,0.062,0.938,1.0,0.938,0.5
+Antivirus_activity,f1,0.038,0.227,0.174,0.184,0.172
+Dairy_markets,precision,0.0,0.333,0.0,0.286,0.0
+Dairy_markets,recall,0.0,0.5,0.0,1.0,0.0
+Dairy_markets,f1,0.0,0.4,0.0,0.445,0.0
+temperature,precision,0.333,0.5,0.25,0.333,0.0
+temperature,recall,1.0,1.0,1.0,1.0,0.0
+temperature,f1,0.5,0.667,0.4,0.5,0.0
+veilleux,precision,0.5,0.5,0.25,0.25,0.0
+veilleux,recall,1.0,1.0,1.0,1.0,0.0
+veilleux,f1,0.667,0.667,0.4,0.4,0.0
+Web_activity,precision,0.231,0.182,0.165,0.149,0.062
+Web_activity,recall,0.214,0.571,0.929,0.786,0.071
+Web_activity,f1,0.222,0.276,0.28,0.251,0.066
